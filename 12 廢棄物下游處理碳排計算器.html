@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>廢棄物下游處理碳排計算器</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <header class="bg-emerald-700 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center">
+            <div class="flex items-center space-x-3 mb-2 sm:mb-0">
+                <div class="bg-emerald-600 p-2.5 rounded-xl shadow-inner">
+                    <i class="fa-solid fa-recycle text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">廢棄物下游處理碳排計算器</h1>
+                    <p class="text-xs text-emerald-200">依據環保署/GHG盤查 Protocol 下游範疇三計算工具</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button onclick="loadSampleData()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-lg text-sm font-medium transition shadow flex items-center space-x-2 border border-emerald-500">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>一鍵載入示範資料</span>
+                </button>
+                <button onclick="clearAllData()" class="bg-emerald-800 hover:bg-emerald-900 text-emerald-100 px-3 py-2 rounded-lg text-sm font-medium transition">
+                    <i class="fa-solid fa-trash-can mr-1"></i> 清空
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left 2 Cols: Input Form and Item List -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- Input Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold text-slate-900 flex items-center">
+                        <i class="fa-solid fa-circle-plus text-emerald-600 mr-2"></i> 新增廢棄物清運記錄
+                    </h2>
+                    <span class="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">範疇三 類別五</span>
+                </div>
+
+                <form id="wasteForm" onsubmit="addWasteItem(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">廢棄物名稱 / 類別</label>
+                        <select id="wasteType" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition">
+                            <option value="" disabled selected>請選擇廢棄物代碼與名稱</option>
+                            <option value="D-0901|一般事業廢棄物混合物">D-0901 一般事業廢棄物混合物</option>
+                            <option value="D-1801|廢塑膠混合物">D-1801 廢塑膠混合物</option>
+                            <option value="D-0501|廢紙混合物">D-0501 廢紙混合物</option>
+                            <option value="C-0301|有機性廢液或廢溶劑">C-0301 有機性廢液或廢溶劑 (有害)</option>
+                            <option value="D-0202|廢金屬混合物">D-0202 廢金屬混合物</option>
+                            <option value="D-1501|污泥混合物">D-1501 污泥混合物</option>
+                            <option value="D-2101|廢玻璃混合物">D-2101 廢玻璃混合物</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">清運重量 (公噸)</label>
+                        <input type="number" id="wasteWeight" step="0.01" min="0.001" placeholder="例: 12.5" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">下游處理方式</label>
+                        <select id="processMethod" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition">
+                            <option value="" disabled selected>請選擇最終處理方式</option>
+                            <option value="incineration">焚化處理 (Incineration)</option>
+                            <option value="landfill">掩埋處理 (Landfill)</option>
+                            <option value="physical">物理處理 / 資源化再利用 (Physical/Recycling)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">備註說明 (選填)</label>
+                        <input type="text" id="wasteNote" placeholder="例: 第一季廠區產出" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition">
+                    </div>
+
+                    <div class="sm:col-span-2 flex justify-end mt-2">
+                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-5 py-2.5 rounded-xl text-sm transition shadow-sm flex items-center space-x-2">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>加入計算清單</span>
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-5 border-b border-slate-100 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-900 flex items-center">
+                        <i class="fa-solid fa-list-check text-emerald-600 mr-2"></i> 清運明細與碳排清單
+                    </h3>
+                    <span id="itemCountBadge" class="bg-emerald-100 text-emerald-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">0 筆記錄</span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                                <th class="p-3.5 pl-5">代碼與名稱</th>
+                                <th class="p-3.5">重量 (公噸)</th>
+                                <th class="p-3.5">處理方式</th>
+                                <th class="p-3.5">排碳係數 (kgCO2e/t)</th>
+                                <th class="p-3.5">總碳排量 (kgCO2e)</th>
+                                <th class="p-3.5 text-center pr-5">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="wasteTableBody" class="divide-y divide-slate-100 text-sm">
+                            <tr id="emptyRow">
+                                <td colspan="6" class="text-center py-8 text-slate-400">
+                                    <i class="fa-solid fa-box-open text-3xl mb-2 block text-slate-300"></i>
+                                    尚未新增資料，請手動輸入或點擊上方「一鍵載入示範資料」
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Col: Summary & Charts -->
+        <div class="space-y-6">
+            
+            <div class="bg-gradient-to-br from-emerald-900 to-slate-900 text-white rounded-2xl shadow-lg p-6 relative overflow-hidden">
+                <div class="absolute -right-6 -bottom-6 opacity-10 text-9xl">
+                    <i class="fa-solid fa-leaf"></i>
+                </div>
+                <h3 class="text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-2">下游廢棄物處理總碳排 (Scope 3 Cat 5)</h3>
+                <div class="flex items-baseline space-x-2 my-1">
+                    <span id="totalEmissionVal" class="text-4xl font-extrabold tracking-tight">0.00</span>
+                    <span class="text-emerald-300 text-sm font-medium">kg CO₂e</span>
+                </div>
+                <p id="totalTonsVal" class="text-xs text-slate-300 mt-1">相當於總清運量 0.00 公噸廢棄物</p>
+
+                <div class="grid grid-cols-2 gap-3 mt-6 pt-6 border-t border-emerald-800/60">
+                    <div>
+                        <span class="text-xs text-slate-400 block">最高佔比處理方式</span>
+                        <span id="topMethodVal" class="text-sm font-semibold text-emerald-200">-</span>
+                    </div>
+                    <div>
+                        <span class="text-xs text-slate-400 block">平均排碳強度</span>
+                        <span id="avgIntensityVal" class="text-sm font-semibold text-emerald-200">0 kg/t</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+                <h3 class="font-bold text-slate-900 mb-4 text-sm flex items-center">
+                    <i class="fa-solid fa-chart-pie text-emerald-600 mr-2"></i> 各處理方式碳排佔比
+                </h3>
+                <div class="relative h-64 flex items-center justify-center">
+                    <canvas id="emissionChart"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+                <h4 class="text-xs font-bold uppercase text-emerald-900 tracking-wider mb-2 flex items-center">
+                    <i class="fa-solid fa-circle-info text-emerald-600 mr-1.5"></i> 係數基準與計算說明
+                </h4>
+                <ul class="text-xs text-emerald-800 space-y-1.5 list-disc list-inside">
+                    <li>依據環保署廢棄物碳排係數資料庫設定預設值。</li>
+                    <li><strong>焚化處理：</strong>包含燃燒直接排放及化石碳源轉換。</li>
+                    <li><strong>掩埋處理：</strong>計算掩埋場厭氧分解產生甲烷(CH4)之溫室效應。</li>
+                    <li><strong>物理處理：</strong>前處理或資源再利用程序之電力及燃料消耗排放。</li>
+                </ul>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Custom Notification Box (replaces alert) -->
+    <div id="toast" class="fixed bottom-5 right-5 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl z-50 flex items-center space-x-3 text-sm">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+        <span id="toastMsg">操作成功</span>
+    </div>
+
+    <script>
+        // Default emission factors (kg CO2e per metric ton of waste)
+        // Based on typical lifecycle/inventory data references for waste treatment
+        const emissionFactors = {
+            'incineration': { name: '焚化處理', factor: 520, badgeClass: 'bg-amber-100 text-amber-800' },
+            'landfill': { name: '掩埋處理', factor: 980, badgeClass: 'bg-indigo-100 text-indigo-800' },
+            'physical': { name: '物理處理/資源化', factor: 180, badgeClass: 'bg-emerald-100 text-emerald-800' }
+        };
+
+        let wasteItems = [];
+        let emissionChartInstance = null;
+
+        // Initialize App
+        window.onload = function() {
+            initChart();
+            renderTable();
+        };
+
+        // Show Toast Notification
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            const toastIcon = document.getElementById('toastIcon');
+            
+            toastMsg.innerText = message;
+            if (isError) {
+                toastIcon.className = "fa-solid fa-circle-exclamation text-rose-400 text-lg";
+            } else {
+                toastIcon.className = "fa-solid fa-circle-check text-emerald-400 text-lg";
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        // Add Waste Item from Form
+        function addWasteItem(event) {
+            event.preventDefault();
+            const wasteTypeRaw = document.getElementById('wasteType').value;
+            const [code, name] = wasteTypeRaw.split('|');
+            const weight = parseFloat(document.getElementById('wasteWeight').value);
+            const method = document.getElementById('processMethod').value;
+            const note = document.getElementById('wasteNote').value;
+
+            if (!weight || weight <= 0) {
+                showToast('請輸入有效的清運重量', true);
+                return;
+            }
+
+            const factorObj = emissionFactors[method];
+            const totalEmission = weight * factorObj.factor;
+
+            const newItem = {
+                id: Date.now(),
+                code,
+                name,
+                weight,
+                method,
+                methodName: factorObj.name,
+                factor: factorObj.factor,
+                totalEmission,
+                note
+            };
+
+            wasteItems.push(newItem);
+            document.getElementById('wasteForm').reset();
+            renderTable();
+            showToast('成功新增廢棄物碳排記錄');
+        }
+
+        // Delete Item
+        function deleteItem(id) {
+            wasteItems = wasteItems.filter(item => item.id !== id);
+            renderTable();
+            showToast('已刪除指定記錄');
+        }
+
+        // Clear All Data
+        function clearAllData() {
+            if (wasteItems.length === 0) return;
+            wasteItems = [];
+            renderTable();
+            showToast('已清空所有清運記錄');
+        }
+
+        // Load Sample Data (One-click demo)
+        function loadSampleData() {
+            wasteItems = [
+                { id: 101, code: 'D-1801', name: '廢塑膠混合物', weight: 15.5, method: 'incineration', methodName: '焚化處理', factor: 520, totalEmission: 15.5 * 520, note: '廠區日常包裝廢棄物' },
+                { id: 102, code: 'D-0901', name: '一般事業廢棄物混合物', weight: 42.0, method: 'landfill', methodName: '掩埋處理', factor: 980, totalEmission: 42.0 * 980, note: '生活垃圾與一般辦公雜廢物' },
+                { id: 103, code: 'D-0501', name: '廢紙混合物', weight: 8.2, method: 'physical', methodName: '物理處理/資源化', factor: 180, totalEmission: 8.2 * 180, note: '紙箱回收再利用' },
+                { id: 104, code: 'C-0301', name: '有機性廢液或廢溶劑', weight: 3.0, method: 'incineration', methodName: '焚化處理', factor: 520, totalEmission: 3.0 * 520, note: '製程有機溶劑殘渣' }
+            ];
+            renderTable();
+            showToast('已成功載入示範清運與碳排數據！');
+        }
+
+        // Render Table and Summary
+        function renderTable() {
+            const tbody = document.getElementById('wasteTableBody');
+            const itemCountBadge = document.getElementById('itemCountBadge');
+            
+            itemCountBadge.innerText = `${wasteItems.length} 筆記錄`;
+
+            if (wasteItems.length === 0) {
+                tbody.innerHTML = `
+                    <tr id="emptyRow">
+                        <td colspan="6" class="text-center py-10 text-slate-400">
+                            <i class="fa-solid fa-box-open text-3xl mb-2 block text-slate-300"></i>
+                            尚未新增資料，請手動輸入或點擊上方「一鍵載入示範資料」
+                        </td>
+                    </tr>
+                `;
+                updateSummaryAndChart(0, 0, {});
+                return;
+            }
+
+            let html = '';
+            let totalW = 0;
+            let totalE = 0;
+            let methodTotals = { incineration: 0, landfill: 0, physical: 0 };
+
+            wasteItems.forEach(item => {
+                totalW += item.weight;
+                totalE += item.totalEmission;
+                methodTotals[item.method] += item.totalEmission;
+
+                const badgeClass = emissionFactors[item.method].badgeClass;
+
+                html += `
+                    <tr class="hover:bg-slate-50/80 transition">
+                        <td class="p-3.5 pl-5">
+                            <div class="font-medium text-slate-900">${item.name}</div>
+                            <div class="text-xs text-slate-400 font-mono">${item.code} ${item.note ? '• ' + item.note : ''}</div>
+                        </td>
+                        <td class="p-3.5 font-medium text-slate-700">${item.weight.toLocaleString()} t</td>
+                        <td class="p-3.5">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass}">
+                                ${item.methodName}
+                            </span>
+                        </td>
+                        <td class="p-3.5 text-slate-600 font-mono">${item.factor}</td>
+                        <td class="p-3.5 font-semibold text-slate-900 font-mono">${item.totalEmission.toLocaleString(undefined, {maximumFractionDigits: 1})}</td>
+                        <td class="p-3.5 text-center pr-5">
+                            <button onclick="deleteItem(${item.id})" class="text-slate-400 hover:text-rose-600 p-1.5 transition rounded-lg hover:bg-rose-50" title="刪除">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+            updateSummaryAndChart(totalW, totalE, methodTotals);
+        }
+
+        // Update Summary Metrics and Chart
+        function updateSummaryAndChart(totalW, totalE, methodTotals) {
+            document.getElementById('totalEmissionVal').innerText = totalE.toLocaleString(undefined, {maximumFractionDigits: 1});
+            document.getElementById('totalTonsVal').innerText = `相當於總清運量 ${totalW.toLocaleString(undefined, {maximumFractionDigits: 2})} 公噸廢棄物`;
+            
+            const avgIntensity = totalW > 0 ? (totalE / totalW).toFixed(1) : 0;
+            document.getElementById('avgIntensityVal').innerText = `${avgIntensity} kg/t`;
+
+            // Find top method
+            let topMethodName = '-';
+            let maxVal = -1;
+            for (const [key, val] of Object.entries(methodTotals)) {
+                if (val > maxVal) {
+                    maxVal = val;
+                    topMethodName = emissionFactors[key].name;
+                }
+            }
+            document.getElementById('topMethodVal').innerText = maxVal > 0 ? topMethodName : '-';
+
+            // Update Chart Data
+            updateChartData(methodTotals);
+        }
+
+        // Initialize Chart.js
+        function initChart() {
+            const ctx = document.getElementById('emissionChart').getContext('2d');
+            emissionChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['焚化處理', '掩埋處理', '物理處理/資源化'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['#f59e0b', '#6366f1', '#10b981'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                font: { size: 11, family: 'Inter' }
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        }
+
+        // Update Chart with new sums
+        function updateChartData(methodTotals) {
+            if (!emissionChartInstance) return;
+            emissionChartInstance.data.datasets[0].data = [
+                methodTotals.incineration || 0,
+                methodTotals.landfill || 0,
+                methodTotals.physical || 0
+            ];
+            emissionChartInstance.update();
+        }
+    </script>
+</body>
+</html>

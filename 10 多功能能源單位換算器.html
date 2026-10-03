@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多功能能源與計量單位正規化換算器</title>
+    <!-- 引入 Tailwind CSS 進行現代化美觀排版 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen py-8 px-4 flex flex-col justify-between">
+
+    <div class="max-w-4xl mx-auto w-full bg-slate-800 shadow-2xl rounded-2xl overflow-hidden border border-slate-700">
+        
+        <!-- 標題與示範按鈕區 -->
+        <div class="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 px-6 py-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                    <span>⚡</span> 能源與計量單位智慧換算器
+                </h1>
+                <p class="text-blue-100 text-sm mt-1">支援體積、重量、能量自動正規化轉換（公秉轉公升、MMBtu 轉度數等）</p>
+            </div>
+            <!-- 一鍵載入示範資料按鈕 -->
+            <button onclick="loadDemoData()" class="bg-amber-400 hover:bg-amber-300 text-slate-900 font-semibold px-4 py-2.5 rounded-xl shadow-lg transition transform active:scale-95 text-sm flex items-center gap-2 cursor-pointer border border-amber-300">
+                <span>✨</span> 一鍵載入示範資料
+            </button>
+        </div>
+
+        <!-- 內容主體區 -->
+        <div class="p-6 md:p-8 space-y-6">
+            
+            <!-- 類別選擇標籤 -->
+            <div class="grid grid-cols-3 gap-2 bg-slate-900/60 p-1.5 rounded-xl border border-slate-700/50">
+                <button onclick="switchCategory('energy')" id="btn-energy" class="py-3 text-center font-semibold rounded-lg transition text-sm shadow-sm bg-blue-600 text-white cursor-pointer">能量 / 熱量</button>
+                <button onclick="switchCategory('volume')" id="btn-volume" class="py-3 text-center font-semibold rounded-lg transition text-sm text-slate-400 hover:text-white cursor-pointer">體積 / 容量</button>
+                <button onclick="switchCategory('weight')" id="btn-weight" class="py-3 text-center font-semibold rounded-lg transition text-sm text-slate-400 hover:text-white cursor-pointer">重量 / 質量</button>
+            </div>
+
+            <!-- 輸入控制區 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 bg-slate-900/40 p-5 rounded-xl border border-slate-700/60">
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">輸入數值</label>
+                    <input type="number" id="inputValue" value="10" oninput="convertUnits()" class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg font-mono text-white">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">來源單位 (Base Unit)</label>
+                    <select id="inputUnit" onchange="convertUnits()" class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-white text-base cursor-pointer">
+                        <!-- 動態填充選項 -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- 轉換結果列表區 -->
+            <div>
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">自動正規化換算結果</h3>
+                    <span id="currentCategoryDesc" class="text-xs text-blue-400 font-medium">基準單位：度 (kWh)</span>
+                </div>
+                <div id="resultsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    <!-- 動態載入結果卡片 -->
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 頁尾說明 -->
+        <div class="bg-slate-900/80 px-6 py-4 border-t border-slate-700/60 text-xs text-slate-400 flex flex-col sm:flex-row justify-between items-center gap-2">
+            <span>💡 提示：輸入任意數值即可即時自動正規化到所有對應單位。點擊右上角可循環切換示範情境。</span>
+            <span class="text-slate-500 font-mono">Energy Unit Norm System v1.2</span>
+        </div>
+    </div>
+
+    <script>
+        // 定義單位與換算係數
+        const unitsData = {
+            energy: {
+                name: "能量 / 熱量",
+                baseUnitName: "度 (kWh)",
+                baseUnitKey: "kWh",
+                units: {
+                    "kWh": { name: "度 (kWh)", factor: 1 },
+                    "MMBtu": { name: "百萬英制熱量 (MMBtu)", factor: 293.07107 },
+                    "MJ": { name: "百萬焦耳 (MJ)", factor: 0.2777778 },
+                    "GJ": { name: "吉焦耳 (GJ)", factor: 277.7778 },
+                    "kcal": { name: "千卡 (kcal)", factor: 0.0011622 },
+                    "Therm": { name: "美制撒姆 (Therm)", factor: 29.3071 }
+                },
+                demos: [
+                    { val: 10, unit: "MMBtu", desc: "示範 1：天然氣 10 MMBtu 轉度數" },
+                    { val: 1500, unit: "kWh", desc: "示範 2：電量 1500 度轉百萬焦耳" },
+                    { val: 50, unit: "GJ", desc: "示範 3：工業能耗 50 GJ 換算" }
+                ]
+            },
+            volume: {
+                name: "體積 / 容量",
+                baseUnitName: "公升 (L)",
+                baseUnitKey: "L",
+                units: {
+                    "L": { name: "公升 (L)", factor: 1 },
+                    "kL": { name: "公秉 (kL)", factor: 1000 },
+                    "m3": { name: "立方公尺 (m³)", factor: 1000 },
+                    "gal": { name: "美制加侖 (US gal)", factor: 3.78541 },
+                    "ft3": { name: "立方英尺 (ft³)", factor: 28.3168 }
+                },
+                demos: [
+                    { val: 5, unit: "kL", desc: "示範 1：水資源 5 公秉轉公升與立方公尺" },
+                    { val: 2500, unit: "L", desc: "示範 2：燃料油 2500 公升轉加侖" },
+                    { val: 120, unit: "m3", desc: "示範 3：氣體體積 120 立方公尺" }
+                ]
+            },
+            weight: {
+                name: "重量 / 質量",
+                baseUnitName: "公斤 (kg)",
+                baseUnitKey: "kg",
+                units: {
+                    "kg": { name: "公斤 (kg)", factor: 1 },
+                    "t": { name: "公噸 (Metric Ton)", factor: 1000 },
+                    "g": { name: "公克 (g)", factor: 0.001 },
+                    "lb": { name: "磅 (lbs)", factor: 0.453592 },
+                    "t_short": { name: "美噸 (Short Ton)", factor: 907.184 }
+                },
+                demos: [
+                    { val: 3.5, unit: "t", desc: "示範 1：生質物 3.5 公噸轉公斤" },
+                    { val: 2000, unit: "kg", desc: "示範 2：碳排當量 2000 公斤轉公噸" },
+                    { val: 4500, unit: "lb", desc: "示範 3：原料 4500 磅轉公斤" }
+                ]
+            }
+        };
+
+        let currentCategory = 'energy';
+        let demoIndex = 0;
+
+        function switchCategory(category) {
+            currentCategory = category;
+            demoIndex = 0;
+
+            // 更新按鈕樣式
+            ['energy', 'volume', 'weight'].forEach(cat => {
+                const btn = document.getElementById(`btn-${cat}`);
+                if (cat === category) {
+                    btn.className = "py-3 text-center font-semibold rounded-lg transition text-sm shadow-sm bg-blue-600 text-white cursor-pointer";
+                } else {
+                    btn.className = "py-3 text-center font-semibold rounded-lg transition text-sm text-slate-400 hover:text-white cursor-pointer";
+                }
+            });
+
+            // 更新基準提示
+            document.getElementById('currentCategoryDesc').textContent = `基準單位：${unitsData[category].baseUnitName}`;
+
+            populateUnitSelect();
+            loadDefaultDemo(false); // 切換類別時自動載入該類別第一筆
+        }
+
+        function populateUnitSelect() {
+            const select = document.getElementById('inputUnit');
+            select.innerHTML = '';
+            const units = unitsData[currentCategory].units;
+
+            for (const [key, obj] of Object.entries(units)) {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = obj.name;
+                select.appendChild(option);
+            }
+        }
+
+        function convertUnits() {
+            const valInput = parseFloat(document.getElementById('inputValue').value);
+            const selectedUnitKey = document.getElementById('inputUnit').value;
+            const currentUnits = unitsData[currentCategory].units;
+
+            if (isNaN(valInput) || !currentUnits[selectedUnitKey]) return;
+
+            // 1. 先正規化轉換成該類別的基準單位總量
+            const baseValue = valInput * currentUnits[selectedUnitKey].factor;
+
+            const container = document.getElementById('resultsContainer');
+            container.innerHTML = '';
+
+            // 2. 從基準總量派生計算出所有同類別單位的數值
+            for (const [key, obj] of Object.entries(currentUnits)) {
+                const convertedVal = baseValue / obj.factor;
+                const formattedVal = formatNumber(convertedVal);
+
+                const isSource = (key === selectedUnitKey);
+                
+                const card = document.createElement('div');
+                card.className = `p-4 rounded-xl border flex flex-col justify-between transition ${
+                    isSource 
+                        ? 'bg-blue-950/40 border-blue-500/60 shadow-md shadow-blue-900/20' 
+                        : 'bg-slate-900/60 border-slate-700/60 hover:border-slate-600'
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="text-xs font-medium ${isSource ? 'text-blue-300 font-semibold' : 'text-slate-400'}">${obj.name}</span>
+                        ${isSource ? '<span class="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">來源</span>' : ''}
+                    </div>
+                    <span class="text-xl font-bold font-mono text-slate-100 tracking-tight truncate" title="${convertedVal}">${formattedVal}</span>
+                    <span class="text-[10px] text-slate-500 font-mono mt-1">代號: ${key}</span>
+                `;
+                container.appendChild(card);
+            }
+        }
+
+        function formatNumber(num) {
+            if (num === 0) return "0";
+            if (Math.abs(num) >= 10000000 || (Math.abs(num) < 0.0001 && Math.abs(num) > 0)) {
+                return num.toExponential(4);
+            }
+            if (Number.isInteger(num)) {
+                return num.toLocaleString();
+            }
+            // 尋找合適的小數位數顯示
+            return parseFloat(num.toFixed(4)).toLocaleString();
+        }
+
+        function loadDemoData() {
+            loadDefaultDemo(true);
+        }
+
+        function loadDefaultDemo(isCycle = true) {
+            const categoryData = unitsData[currentCategory];
+            const demo = categoryData.demos[demoIndex];
+
+            document.getElementById('inputValue').value = demo.val;
+            document.getElementById('inputUnit').value = demo.unit;
+
+            if (isCycle) {
+                // 循環切換該類別的示範清單
+                demoIndex = (demoIndex + 1) % categoryData.demos.length;
+            }
+
+            convertUnits();
+        }
+
+        // 頁面初始化
+        window.onload = function() {
+            switchCategory('energy');
+        };
+    </script>
+</body>
+</html>

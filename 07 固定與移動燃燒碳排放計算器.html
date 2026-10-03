@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>固定燃燒與移動燃燒溫室氣體計算器</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <header class="bg-gradient-to-r from-emerald-700 to-teal-800 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-5 flex flex-col md:flex-row justify-between items-center">
+            <div class="flex items-center space-x-3 mb-3 md:mb-0">
+                <div class="bg-emerald-600 p-2.5 rounded-xl shadow-inner">
+                    <i class="fa-solid fa-fire-flame-curved text-2xl text-emerald-100"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight">固定燃燒與移動燃燒碳排計算器</h1>
+                    <p class="text-xs text-emerald-200">ISO 14064-1 範疇一溫室氣體盤查輔助工具</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button id="demoBtn" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold px-4 py-2 rounded-xl shadow transition duration-200 flex items-center space-x-2 text-sm">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>一鍵載入示範資料</span>
+                </button>
+                <button id="resetBtn" class="bg-slate-700 hover:bg-slate-600 text-white font-medium px-4 py-2 rounded-xl shadow transition duration-200 flex items-center space-x-2 text-sm">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>清除重設</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <!-- Left 2 Columns: Input Controls & Settings -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- Settings Card: Factor Year Selection -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
+                        <i class="fa-solid fa-gear text-emerald-600"></i>
+                        <span>盤查參數與係數版本設定</span>
+                    </h2>
+                    <span class="text-xs bg-emerald-50 text-emerald-700 font-semibold px-2.5 py-1 rounded-full border border-emerald-200">係數對照</span>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">係數公告年份版本</label>
+                        <select id="factorYear" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                            <option value="2024">中華民國溫室氣體排放係數管理表 6.0.4版 (2024)</option>
+                            <option value="2023">中華民國溫室氣體排放係數管理表 6.0.3版 (2023)</option>
+                            <option value="2022">中華民國溫室氣體排放係數管理表 6.0.2版 (2022)</option>
+                        </select>
+                        <p class="text-xs text-slate-500 mt-1">自動帶入環保署公告之柴油與天然氣碳排係數與當量值。</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">統計月份</label>
+                        <select id="calcMonth" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                            <option value="1">1月</option>
+                            <option value="2">2月</option>
+                            <option value="3">3月</option>
+                            <option value="4">4月</option>
+                            <option value="5">5月</option>
+                            <option value="6">6月</option>
+                            <option value="7">7月</option>
+                            <option value="8">8月</option>
+                            <option value="9">9月</option>
+                            <option value="10">10月</option>
+                            <option value="11">11月</option>
+                            <option value="12">12月</option>
+                        </select>
+                        <p class="text-xs text-slate-500 mt-1">選擇計算並即時顯示當月噸數的月份。</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                    <div class="flex items-center space-x-3">
+                        <div class="bg-blue-50 text-blue-600 p-2.5 rounded-xl">
+                            <i class="fa-solid fa-truck text-xl"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-900">移動燃燒源 - 卡車柴油</h2>
+                            <p class="text-xs text-slate-500">範疇一直接排放 (公務卡車、運輸車隊)</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs text-slate-500 block">當月排放量</span>
+                        <span id="mobileMonthlyTotal" class="text-lg font-bold text-blue-600">0.0000 噸 CO₂e</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">當月柴油使用量 (公升 / L)</label>
+                        <div class="relative">
+                            <input type="number" id="dieselInput" min="0" step="1" placeholder="例如：5000" class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-3 pr-16 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                            <span class="absolute right-3 top-2.5 text-xs font-semibold text-slate-400 bg-slate-200 px-2 py-0.5 rounded">公升</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">柴油當量係數 (kg CO₂e / L)</label>
+                        <input type="text" id="dieselFactorDisplay" readonly class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-600 cursor-not-allowed">
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                    <div class="flex items-center space-x-3">
+                        <div class="bg-orange-50 text-orange-600 p-2.5 rounded-xl">
+                            <i class="fa-solid fa-industry text-xl"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-900">固定燃燒源 - 鍋爐天然氣</h2>
+                            <p class="text-xs text-slate-500">範疇一直接排放 (廠區蒸氣鍋爐、加熱爐)</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs text-slate-500 block">當月排放量</span>
+                        <span id="fixedMonthlyTotal" class="text-lg font-bold text-orange-600">0.0000 噸 CO₂e</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">當月天然氣使用量 (立方公尺 / m³)</label>
+                        <div class="relative">
+                            <input type="number" id="gasInput" min="0" step="1" placeholder="例如：25000" class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-3 pr-16 py-2.5 text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none">
+                            <span class="absolute right-3 top-2.5 text-xs font-semibold text-slate-400 bg-slate-200 px-2 py-0.5 rounded">m³</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">天然氣當量係數 (kg CO₂e / m³)</label>
+                        <input type="text" id="gasFactorDisplay" readonly class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-600 cursor-not-allowed">
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h3 class="text-md font-bold text-slate-900 mb-2 flex items-center space-x-2">
+                    <i class="fa-solid fa-calendar-days text-emerald-600"></i>
+                    <span>全年 12 個月燃料消耗明細輸入 (選填：用於繪製年度趨勢)</span>
+                </h3>
+                <p class="text-xs text-slate-500 mb-4">當點擊「一鍵載入示範資料」或手動調整時，各月份數據將同步更新圖表與年度總計。</p>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs md:text-sm">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700">
+                                <th class="p-2.5 rounded-l-xl">月份</th>
+                                <th class="p-2.5">卡車柴油 (L)</th>
+                                <th class="p-2.5 rounded-r-xl">天然氣 (m³)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="monthlyTableBody" class="divide-y divide-slate-100">
+                            <!-- Injected by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Column: Summary & Analytics Dashboard -->
+        <div class="space-y-6">
+            
+            <!-- Result Summary Card -->
+            <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl shadow-lg p-6 relative overflow-hidden">
+                <div class="absolute -right-6 -bottom-6 opacity-10">
+                    <i class="fa-solid fa-earth-americas text-9xl"></i>
+                </div>
+                <div class="relative z-10">
+                    <span id="selectedMonthBadge" class="bg-emerald-500 text-slate-950 font-bold text-xs px-2.5 py-1 rounded-full uppercase tracking-wider">1月 盤查快照</span>
+                    
+                    <div class="mt-4">
+                        <span class="text-slate-400 text-xs block">當月範疇一總排放量</span>
+                        <div class="flex items-baseline space-x-2 mt-1">
+                            <span id="summaryMonthTotal" class="text-4xl font-extrabold tracking-tight text-emerald-400">0.00</span>
+                            <span class="text-sm font-semibold text-slate-300">公噸 CO₂e</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-slate-700">
+                        <div>
+                            <span class="text-xs text-slate-400 block">移動燃燒 (柴油)</span>
+                            <span id="summaryMobileVal" class="text-lg font-bold text-blue-400">0.00 噸</span>
+                        </div>
+                        <div>
+                            <span class="text-xs text-slate-400 block">固定燃燒 (天然氣)</span>
+                            <span id="summaryFixedVal" class="text-lg font-bold text-orange-400">0.00 噸</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-slate-700/60 flex justify-between items-center text-xs text-slate-300">
+                        <span>全年累計排放總量：</span>
+                        <span id="summaryAnnualTotal" class="font-bold text-white text-sm">0.00 公噸 CO₂e</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart Visualization Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h3 class="text-md font-bold text-slate-900 mb-4 flex items-center space-x-2">
+                    <i class="fa-solid fa-chart-column text-emerald-600"></i>
+                    <span>全年每月碳排趨勢 (公噸 $CO_2e$)</span>
+                </h3>
+                <div class="relative h-64 w-full">
+                    <canvas id="emissionChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Compliance & Reference Notice -->
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-xs text-emerald-800 space-y-2">
+                <div class="flex items-center space-x-2 font-bold">
+                    <i class="fa-solid fa-circle-info text-emerald-600 text-sm"></i>
+                    <span>溫室氣體盤查計算原則說明</span>
+                </div>
+                <p>1. <strong>固定燃燒源 (天然氣)</strong>：計算公式為 $Q \times EF$，單位為公斤 $CO_2e$，再除以 1000 轉換為公噸。</p>
+                <p>2. <strong>移動燃燒源 (柴油)</strong>：依據車輛燃料消耗量乘以車輛燃料係數。</p>
+                <p>3. 支援動態切換不同年份環保署公告係數，確保盤查報告符合法規要求。</p>
+            </div>
+
+        </div>
+
+    </main>
+
+    <footer class="bg-slate-900 text-slate-400 text-center py-6 text-xs border-t border-slate-800 mt-auto">
+        <p>固定燃燒與移動燃燒計算器 &copy; 2026 | 依循 ISO 14064-1 溫室氣體盤查標準建置</p>
+    </footer>
+
+    <script>
+        
+        // 係數對照表 (依據中華民國溫室氣體排放係數管理表不同版本)
+        const emissionFactors = {
+            "2024": {
+                diesel: 2.684, // kg CO2e / L
+                gas: 2.062     // kg CO2e / m3
+            },
+            "2023": {
+                diesel: 2.675,
+                gas: 2.055
+            },
+            "2022": {
+                diesel: 2.663,
+                gas: 2.040
+            }
+        };
+
+        // 12個月資料結構 (陣列，索引 0~11 對應 1~12月)
+        let monthlyData = {
+            diesel: new Array(12).fill(0),
+            gas: new Array(12).fill(0)
+        };
+
+        // 示範資料
+        const demoMonthlyDiesel = [4800, 5200, 4900, 5100, 5500, 6000, 5800, 5300, 5000, 5200, 5600, 6100];
+        const demoMonthlyGas = [22000, 24000, 21000, 20000, 19000, 18000, 17500, 18200, 19500, 23000, 25000, 27000];
+
+        let emissionChartInstance = null;
+
+        // DOM 元素
+        const factorYearSelect = document.getElementById('factorYear');
+        const calcMonthSelect = document.getElementById('calcMonth');
+        const dieselInput = document.getElementById('dieselInput');
+        const gasInput = document.getElementById('gasInput');
+        const dieselFactorDisplay = document.getElementById('dieselFactorDisplay');
+        const gasFactorDisplay = document.getElementById('gasFactorDisplay');
+        
+        const mobileMonthlyTotal = document.getElementById('mobileMonthlyTotal');
+        const fixedMonthlyTotal = document.getElementById('fixedMonthlyTotal');
+        
+        const selectedMonthBadge = document.getElementById('selectedMonthBadge');
+        const summaryMonthTotal = document.getElementById('summaryMonthTotal');
+        const summaryMobileVal = document.getElementById('summaryMobileVal');
+        const summaryFixedVal = document.getElementById('summaryFixedVal');
+        const summaryAnnualTotal = document.getElementById('summaryAnnualTotal');
+        
+        const monthlyTableBody = document.getElementById('monthlyTableBody');
+        const demoBtn = document.getElementById('demoBtn');
+        const resetBtn = document.getElementById('resetBtn');
+
+        // 初始化表格欄位
+        function renderMonthlyTable() {
+            monthlyTableBody.innerHTML = '';
+            const monthNames = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
+            
+            for (let i = 0; i < 12; i++) {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition";
+                tr.innerHTML = `
+                    <td class="p-2.5 font-medium text-slate-700">${monthNames[i]}</td>
+                    <td class="p-2.5">
+                        <input type="number" min="0" data-month="${i}" data-type="diesel" value="${monthlyData.diesel[i]}" class="monthly-input w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+                    </td>
+                    <td class="p-2.5">
+                        <input type="number" min="0" data-month="${i}" data-type="gas" value="${monthlyData.gas[i]}" class="monthly-input w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+                    </td>
+                `;
+                monthlyTableBody.appendChild(tr);
+            }
+
+            // 綁定每月明細輸入事件
+            document.querySelectorAll('.monthly-input').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    const m = parseInt(e.target.getAttribute('data-month'));
+                    const type = e.target.getAttribute('data-type');
+                    const val = parseFloat(e.target.value) || 0;
+                    
+                    monthlyData[type][m] = val;
+
+                    // 若正在編輯當前選擇的月份，同步更新上方主輸入框
+                    const currentSelectedMonth = parseInt(calcMonthSelect.value) - 1;
+                    if (m === currentSelectedMonth) {
+                        if (type === 'diesel') dieselInput.value = val;
+                        if (type === 'gas') gasInput.value = val;
+                    }
+
+                    updateCalculations();
+                });
+            });
+        }
+
+        // 初始化圖表
+        function initChart() {
+            const ctx = document.getElementById('emissionChart').getContext('2d');
+            const monthLabels = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
+            
+            emissionChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: monthLabels,
+                    datasets: [
+                        {
+                            label: '移動燃燒 (柴油) 噸',
+                            data: new Array(12).fill(0),
+                            backgroundColor: '#3b82f6',
+                            borderRadius: 4
+                        },
+                        {
+                            label: '固定燃燒 (天然氣) 噸',
+                            data: new Array(12).fill(0),
+                            backgroundColor: '#f97316',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true, grid: { display: false } },
+                        y: { stacked: true, beginAtZero: true, grid: { color: '#f1f5f9' } }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+                    }
+                }
+            });
+        }
+
+        // 更新計算結果與介面顯示
+        function updateCalculations() {
+            const year = factorYearSelect.value;
+            const currentMonthIdx = parseInt(calcMonthSelect.value) - 1;
+            const factors = emissionFactors[year];
+
+            // 顯示係數
+            dieselFactorDisplay.value = `${factors.diesel} kg CO₂e / L`;
+            gasFactorDisplay.value = `${factors.gas} kg CO₂e / m³`;
+
+            // 確保上方輸入框與當月矩陣一致
+            const dieselVal = parseFloat(dieselInput.value) || 0;
+            const gasVal = parseFloat(gasInput.value) || 0;
+
+            monthlyData.diesel[currentMonthIdx] = dieselVal;
+            monthlyData.gas[currentMonthIdx] = gasVal;
+
+            // 同步更新表格對應欄位
+            const tableInputs = document.querySelectorAll('.monthly-input');
+            tableInputs.forEach(input => {
+                const m = parseInt(input.getAttribute('data-month'));
+                const type = input.getAttribute('data-type');
+                if (m === currentMonthIdx) {
+                    input.value = monthlyData[type][m];
+                }
+            });
+
+            // 當月計算 (公噸 = kg / 1000)
+            const mobileMonthTon = (dieselVal * factors.diesel) / 1000;
+            const fixedMonthTon = (gasVal * factors.gas) / 1000;
+            const totalMonthTon = mobileMonthTon + fixedMonthTon;
+
+            mobileMonthlyTotal.textContent = `${mobileMonthTon.toFixed(4)} 噸 CO₂e`;
+            fixedMonthlyTotal.textContent = `${fixedMonthTon.toFixed(4)} 噸 CO₂e`;
+
+            selectedMonthBadge.textContent = `${calcMonthSelect.value}月 盤查快照`;
+            summaryMonthTotal.textContent = totalMonthTon.toFixed(2);
+            summaryMobileVal.textContent = `${mobileMonthTon.toFixed(2)} 噸`;
+            summaryFixedVal.textContent = `${fixedMonthTon.toFixed(2)} 噸`;
+
+            // 全年累計計算
+            let annualTotal = 0;
+            let chartDieselData = [];
+            let chartGasData = [];
+
+            for (let i = 0; i < 12; i++) {
+                const dTon = (monthlyData.diesel[i] * factors.diesel) / 1000;
+                const gTon = (monthlyData.gas[i] * factors.gas) / 1000;
+                chartDieselData.push(parseFloat(dTon.toFixed(3)));
+                chartGasData.push(parseFloat(gTon.toFixed(3)));
+                annualTotal += (dTon + gTon);
+            }
+
+            summaryAnnualTotal.textContent = `${annualTotal.toFixed(2)} 公噸 CO₂e`;
+
+            // 更新圖表資料
+            if (emissionChartInstance) {
+                emissionChartInstance.data.datasets[0].data = chartDieselData;
+                emissionChartInstance.data.datasets[1].data = chartGasData;
+                emissionChartInstance.update();
+            }
+        }
+
+        // 事件監聽
+        factorYearSelect.addEventListener('change', updateCalculations);
+        
+        calcMonthSelect.addEventListener('change', () => {
+            const currentMonthIdx = parseInt(calcMonthSelect.value) - 1;
+            dieselInput.value = monthlyData.diesel[currentMonthIdx];
+            gasInput.value = monthlyData.gas[currentMonthIdx];
+            updateCalculations();
+        });
+
+        dieselInput.addEventListener('input', updateCalculations);
+        gasInput.addEventListener('input', updateCalculations);
+
+        // 一鍵載入示範資料按鈕
+        demoBtn.addEventListener('click', () => {
+            monthlyData.diesel = [...demoMonthlyDiesel];
+            monthlyData.gas = [...demoMonthlyGas];
+
+            const currentMonthIdx = parseInt(calcMonthSelect.value) - 1;
+            dieselInput.value = monthlyData.diesel[currentMonthIdx];
+            gasInput.value = monthlyData.gas[currentMonthIdx];
+
+            renderMonthlyTable();
+            updateCalculations();
+        });
+
+        // 清除重設按鈕
+        resetBtn.addEventListener('click', () => {
+            monthlyData.diesel = new Array(12).fill(0);
+            monthlyData.gas = new Array(12).fill(0);
+            dieselInput.value = '';
+            gasInput.value = '';
+            renderMonthlyTable();
+            updateCalculations();
+        });
+
+        // 頁面載入初始化
+        window.onload = function() {
+            renderMonthlyTable();
+            initChart();
+            // 預設載入1月示範數值
+            calcMonthSelect.value = "1";
+            dieselInput.value = demoMonthlyDiesel[0];
+            gasInput.value = demoMonthlyGas[0];
+            monthlyData.diesel = [...demoMonthlyDiesel];
+            monthlyData.gas = [...demoMonthlyGas];
+            renderMonthlyTable();
+            updateCalculations();
+        };
+    </script>
+</body>
+</html>

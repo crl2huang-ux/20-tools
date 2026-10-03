@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>碳流向桑基圖生成工具</title>
+    <!--載入 Tailwind CSS 進行現代化排版-->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!--載入 D3.js v7-->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!--載入 D3-Sankey 插件-->
+    <script src="https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .node rect { cursor: move; fill-opacity: .9; shape-rendering: crispEdges; }
+        .node text { pointer-events: none; text-shadow: 0 1px 0 #fff; font-size: 12px; font-weight: 500; }
+        .link { fill: none; stroke-opacity: .35; transition: stroke-opacity 0.2s; }
+        .link:hover { stroke-opacity: .7; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <header class="bg-emerald-700 text-white shadow-md py-4 px-6 flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <svg class="w-8 h-8 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+            </svg>
+            <h1 class="text-xl font-bold tracking-wide">碳流向桑基圖生成工具 (Carbon Sankey Generator)</h1>
+        </div>
+        <div class="text-sm text-emerald-100 hidden sm:block">範疇一、二、三碳足跡動態流向視覺化</div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- 左側控制面板：輸入與設定 -->
+        <section class="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col h-fit">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 bg-emerald-600 rounded-full"></span>
+                    碳流向數據編輯區
+                </h2>
+                <!-- 一鍵載入示範資料按鈕 -->
+                <button id="loadDemoBtn" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-medium px-3 py-1.5 rounded-lg text-sm border border-emerald-300 transition shadow-sm flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    一鍵載入示範資料
+                </button>
+            </div>
+
+            <p class="text-xs text-slate-500 mb-4 leading-relaxed">
+                請輸入碳流向資料。格式為每行一筆：<code class="bg-slate-100 text-slate-700 px-1 py-0.5 rounded">來源節點, 目標節點, 數值(噸)</code>。<br>例如：<span class="text-slate-600 italic">範疇一燃料燃燒, 鍋爐發電, 1200</span>
+            </p>
+
+            <!-- 文字輸入框 -->
+            <div class="mb-4 flex-1">
+                <label for="dataInput" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">原始數據輸入 (CSV 格式)</label>
+                <textarea id="dataInput" rows="12" class="w-full font-mono text-xs p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-y" placeholder="來源節點, 目標節點, 數值..."></textarea>
+            </div>
+
+            <!-- 錯誤提示區 -->
+            <div id="errorMsg" class="hidden mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl"></div>
+
+            <!-- 操作按鈕列 -->
+            <div class="flex gap-3 pt-2 border-t border-slate-100">
+                <button id="updateChartBtn" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-4 rounded-xl text-sm transition shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    立即渲染圖表
+                </button>
+                <button id="clearBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium py-2.5 px-3 rounded-xl text-sm transition">
+                    清除
+                </button>
+            </div>
+        </section>
+
+        <section class="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 bg-blue-600 rounded-full"></span>
+                        碳流向桑基圖預覽
+                    </h2>
+                    <p class="text-xs text-slate-500">單位：公噸 $CO_2e$</p>
+                </div>
+                <!-- 下載 SVG 按鈕 -->
+                <button id="downloadSvgBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-3.5 py-2 rounded-xl text-sm transition shadow-sm flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                    下載 SVG 圖檔
+                </button>
+            </div>
+
+            <!-- 圖表容器 -->
+            <div id="chartContainer" class="relative flex-1 w-full min-h-[500px] flex items-center justify-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200 overflow-hidden">
+                <div id="placeholderText" class="text-slate-400 text-sm flex flex-col items-center gap-2">
+                    <svg class="w-10 h-10 text-slate-300 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                    點擊「一鍵載入示範資料」或手動輸入後點擊渲染
+                </div>
+                <!-- D3 SVG 將渲染在此 -->
+                <svg id="sankeySvg" class="w-full h-full absolute inset-0 hidden"></svg>
+            </div>
+            
+            <!-- 圖表互動提示 -->
+            <div class="mt-3 text-xs text-slate-400 flex items-center justify-between">
+                <span>提示：可拖曳區塊節點調整位置，游標懸停查看詳細碳排噸數。</span>
+                <span id="nodeLinkCount" class="font-medium text-slate-600"></span>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // 示範資料內容 (企業碳足跡範例：範疇一、二、三到各製程與最終去向)
+        const demoData = `範疇一：天然氣燃燒, 鍋爐加熱製程, 1500
+範疇一：公務車柴油, 廠區內物流, 320
+範疇二：外購電力, 廠區中央空調, 2400
+範疇二：外購電力, 生產線主馬達, 3600
+範疇三：供應鏈原料, 鋼鐵原料採購, 5000
+範疇三：供應鏈原料, 化學品原料採購, 1800
+範疇三：廢棄物處理, 外部焚化掩埋, 450
+鍋爐加熱製程, 產品烘乾產線, 1200
+鍋爐加熱製程, 蒸汽損耗與散逸, 300
+廠區內物流, 產品出貨包裝, 320
+廠區中央空調, 辦公大樓空調, 2400
+生產線主馬達, 核心組件加工, 3600
+鋼鐵原料採購, 核心組件加工, 4200
+鋼鐵原料採購, 結構件半成品, 800
+化學品原料採購, 塗裝與表面處理, 1800
+核心組件加工, 最終成品組裝, 6500
+結構件半成品, 最終成品組裝, 800
+塗裝與表面處理, 最終成品組裝, 1800
+最終成品組裝, 客戶端碳足跡交貨, 9100
+外部焚化掩埋, 最終廢棄處置, 450`;
+
+        // 頁面載入時自動寫入示範資料並渲染一次
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('dataInput').value = demoData;
+            renderSankey();
+        });
+
+        // 綁定一鍵載入示範資料按鈕
+        document.getElementById('loadDemoBtn').addEventListener('click', () => {
+            document.getElementById('dataInput').value = demoData;
+            hideError();
+            renderSankey();
+        });
+
+        // 綁定更新圖表按鈕
+        document.getElementById('updateChartBtn').addEventListener('click', () => {
+            renderSankey();
+        });
+
+        // 綁定清除按鈕
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            document.getElementById('dataInput').value = '';
+            document.getElementById('sankeySvg').classList.add('hidden');
+            document.getElementById('placeholderText').classList.remove('hidden');
+            document.getElementById('nodeLinkCount').textContent = '';
+            hideError();
+        });
+
+        // 解析文字並渲染桑基圖
+        function renderSankey() {
+            const rawText = document.getElementById('dataInput').value.trim();
+            if (!rawText) {
+                showError('請輸入至少一筆碳流向數據。');
+                return;
+            }
+            hideError();
+
+            const lines = rawText.split('\n');
+            const linksData = [];
+            const nodesSet = new Set();
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                const parts = line.split(',');
+                if (parts.length < 3) {
+                    showError(`第 ${i + 1} 行格式錯誤，請使用「來源, 目標, 數值」格式。`);
+                    return;
+                }
+                const source = parts[0].trim();
+                const target = parts[1].trim();
+                const value = parseFloat(parts[2].trim());
+
+                if (isNaN(value) || value < 0) {
+                    showError(`第 ${i + 1} 行數值無效（必須為正數）。`);
+                    return;
+                }
+
+                nodesSet.add(source);
+                nodesSet.add(target);
+                linksData.push({ source, target, value });
+            }
+
+            if (linksData.length === 0) {
+                showError('沒有有效的資料可供渲染。');
+                return;
+            }
+
+            // 建立 D3 節點陣列索引
+            const nodes = Array.from(nodesSet, name => ({ name }));
+            const nodeMap = new Map(nodes.map((node, i) => [node.name, i]));
+
+            const links = linksData.map(d => ({
+                source: nodeMap.get(d.source),
+                target: nodeMap.get(d.target),
+                value: d.value
+            }));
+
+            // 顯示圖表容器、隱藏提示文字
+            const svgElement = document.getElementById('sankeySvg');
+            const placeholder = document.getElementById('placeholderText');
+            svgElement.classList.remove('hidden');
+            placeholder.classList.add('hidden');
+
+            // 取得容器動態寬高
+            const container = document.getElementById('chartContainer');
+            const width = container.clientWidth || 700;
+            const height = 500;
+
+            // 清空舊圖形
+            d3.select('#sankeySvg').selectAll('*').remove();
+
+            const svg = d3.select('#sankeySvg')
+                .attr('viewBox', [0, 0, width, height]);
+
+            // 設定桑基圖排版器
+            const sankey = d3.sankey()
+                .nodeId(d => d.index)
+                .nodeAlign(d3.sankeyJustify)
+                .nodeWidth(18)
+                .nodePadding(12)
+                .extent([[1, 1], [width - 1, height - 25]]);
+
+            const { nodes: sankeyNodes, links: sankeyLinks } = sankey({
+                nodes: nodes.map(d => Object.assign({}, d)),
+                links: links.map(d => Object.assign({}, d))
+            });
+
+            document.getElementById('nodeLinkCount').textContent = `節點數: ${sankeyNodes.length} | 流向數: ${sankeyLinks.length}`;
+
+            // 配色盤
+            const colorScale = d3.scaleOrdinal(d3.schemeTableau10);
+
+            // 繪製流向路徑 (Links)
+            const link = svg.append('g')
+                .attr('fill', 'none')
+                .selectAll('g')
+                .data(sankeyLinks)
+                .join('g')
+                .style('mix-blend-mode', 'multiply');
+
+            link.append('path')
+                .attr('d', d3.sankeyLinkHorizontal())
+                .attr('stroke', d => {
+                    // 根據來源或目標染色
+                    return colorScale(d.source.name.replace(/ .*/, ''));
+                })
+                .attr('stroke-width', d => Math.max(1, d.width))
+                .attr('class', 'link');
+
+            // 添加路徑懸停提示 (Tooltip)
+            link.append('title')
+                .text(d => `${d.source.name} → ${d.target.name}\n碳排量：${d.value.toLocaleString()} 公噸 CO₂e`);
+
+            // 繪製節點矩形 (Nodes)
+            const node = svg.append('g')
+                .selectAll('g')
+                .data(sankeyNodes)
+                .join('g');
+
+            node.append('rect')
+                .attr('x', d => d.x0)
+                .attr('y', d => d.y0)
+                .attr('height', d => d.y1 - d.y0)
+                .attr('width', d => d.x1 - d.x0)
+                .attr('fill', d => colorScale(d.name.replace(/ .*/, '')))
+                .attr('stroke', '#334155')
+                .attr('stroke-width', 0.5)
+                .attr('rx', 3)
+                .append('title')
+                .text(d => `${d.name}\n總碳排流量：${d.value.toLocaleString()} 公噸 CO₂e`);
+
+            // 繪製節點文字標籤
+            node.append('text')
+                .attr('x', d => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6)
+                .attr('y', d => (d.y1 + d.y0) / 2)
+                .attr('dy', '0.35em')
+                .attr('text-anchor', d => d.x0 < width / 2 ? 'start' : 'end')
+                .text(d => d.name)
+                .attr('fill', '#334155');
+        }
+
+        function showError(msg) {
+            const errBox = document.getElementById('errorMsg');
+            errBox.textContent = msg;
+            errBox.classList.remove('hidden');
+        }
+
+        function hideError() {
+            const errBox = document.getElementById('errorMsg');
+            errBox.classList.add('hidden');
+        }
+
+        // 下載 SVG 圖檔功能
+        document.getElementById('downloadSvgBtn').addEventListener('click', () => {
+            const svgEl = document.getElementById('sankeySvg');
+            if (svgEl.classList.contains('hidden')) {
+                showError('目前沒有可下載的圖表，請先渲染桑基圖。');
+                return;
+            }
+
+            // 複製並序列化 SVG
+            const svgString = new XMLSerializer().serializeToString(svgEl);
+            const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            
+            const downloadLink = document.createElement('a');
+            downloadLink.href = url;
+            downloadLink.download = 'carbon_sankey_diagram.svg';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+            URL.revokeObjectURL(url);
+        });
+    </script>
+</body>
+</html>

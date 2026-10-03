@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>供應商碳數據追蹤 Kanban</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React 18 & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel Standalone for JSX compilation in browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .kanban-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .kanban-scrollbar::-webkit-scrollbar-track {
+            background: rgba(241, 245, 249, 0.5);
+            border-radius: 9999px;
+        }
+        .kanban-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(203, 213, 225, 0.8);
+            border-radius: 9999px;
+        }
+        .kanban-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 1);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+    <div id="root" class="flex-1 flex flex-col"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        const COLUMNS = [
+            { id: 'not_sent', title: '未發放問卷', color: 'border-slate-300 bg-slate-100 text-slate-700', badgeColor: 'bg-slate-200 text-slate-700', icon: 'FileText' },
+            { id: 'sent', title: '已發放', color: 'border-blue-200 bg-blue-50/50 text-blue-700', badgeColor: 'bg-blue-100 text-blue-700', icon: 'Send' },
+            { id: 'review', title: '數據審查中', color: 'border-amber-200 bg-amber-50/50 text-amber-700', badgeColor: 'bg-amber-100 text-amber-700', icon: 'Search' },
+            { id: 'verified', title: '已納入盤查庫', color: 'border-emerald-200 bg-emerald-50/50 text-emerald-700', badgeColor: 'bg-emerald-100 text-emerald-700', icon: 'CheckCircle2' }
+        ];
+
+        const CATEGORIES = ['原物料', '物流', '製造', '包裝', '資訊服務', '設備'];
+
+        const INITIAL_DEMO_DATA = [
+            {
+                id: 'sup-1',
+                name: '台灣綠色原物料股份有限公司',
+                category: '原物料',
+                contact: '陳經理 (chen@greenmat.com)',
+                scope1: 1250,
+                scope2: 3400,
+                scope3: 8900,
+                status: 'verified',
+                updatedAt: '2026-03-28',
+                notes: '已完成第三方ISO 14064查證，數據品質良好。'
+            },
+            {
+                id: 'sup-2',
+                name: '極速快遞物流服務',
+                category: '物流',
+                contact: '林專員 (service@superspeed.com.tw)',
+                scope1: 4500,
+                scope2: 1200,
+                scope3: 15000,
+                status: 'review',
+                updatedAt: '2026-04-01',
+                notes: '正在審查車隊電動化轉換比例及油耗憑證。'
+            },
+            {
+                id: 'sup-3',
+                name: '精準精密電子製造',
+                category: '製造',
+                contact: '王副總 (joshua@precision.com)',
+                scope1: 890,
+                scope2: 7800,
+                scope3: 4200,
+                status: 'sent',
+                updatedAt: '2026-03-25',
+                notes: '已於3/25發送2025年度碳盤查問卷，等待回傳。'
+            },
+            {
+                id: 'sup-4',
+                name: '環保生質包裝容器廠',
+                category: '包裝',
+                contact: '張小姐 (amy@ecopack.org)',
+                scope1: 320,
+                scope2: 950,
+                scope3: 1100,
+                status: 'not_sent',
+                updatedAt: '2026-03-20',
+                notes: '列入本季新導入供應商碳盤查名單。'
+            },
+            {
+                id: 'sup-5',
+                name: '雲端運算科技服務',
+                category: '資訊服務',
+                contact: 'David Lee (david@cloudtech.io)',
+                scope1: 15,
+                scope2: 450,
+                scope3: 2300,
+                status: 'verified',
+                updatedAt: '2026-03-30',
+                notes: '採用綠能數據中心，碳排系數已套用最新國際標準。'
+            },
+            {
+                id: 'sup-6',
+                name: '重工機械設備供應商',
+                category: '設備',
+                contact: '黃廠長 (huang@heavymach.com)',
+                scope1: 3100,
+                scope2: 5600,
+                scope3: 12000,
+                status: 'review',
+                updatedAt: '2026-04-02',
+                notes: '電力帳單與燃料使用明細已上傳，等待總部合規複查。'
+            },
+            {
+                id: 'sup-7',
+                name: '全方位特化化學原料',
+                category: '原物料',
+                contact: '劉主任 (liou@chemall.com)',
+                scope1: 5200,
+                scope2: 8900,
+                scope3: 18400,
+                status: 'sent',
+                updatedAt: '2026-03-28',
+                notes: '提醒截止日期為本月底。'
+            }
+        ];
+
+        function App() {
+            const [suppliers, setSuppliers] = useState(() => {
+                const saved = localStorage.getItem('carbon_suppliers_kanban');
+                return saved ? JSON.parse(saved) : INITIAL_DEMO_DATA;
+            });
+
+            const [searchTerm, setSearchTerm] = useState('');
+            const [selectedCategory, setSelectedCategory] = useState('ALL');
+            const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
+            
+            // Modal state
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [currentSupplier, setCurrentSupplier] = useState(null); // null means create new, object means edit
+
+            // Toast / Message box state
+            const [toastMessage, setToastMessage] = useState(null);
+
+            useEffect(() => {
+                localStorage.setItem('carbon_suppliers_kanban', JSON.stringify(suppliers));
+            }, [suppliers]);
+
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, [suppliers, isModalOpen, searchTerm, selectedCategory, selectedStatusFilter]);
+
+            const showToast = (msg) => {
+                setToastMessage(msg);
+                setTimeout(() => {
+                    setToastMessage(null);
+                }, 3500);
+            };
+
+            const handleLoadDemoData = () => {
+                setSuppliers(INITIAL_DEMO_DATA);
+                showToast('已成功載入 7 筆逼真的供應商碳數據示範資料！');
+            };
+
+            const handleClearAll = () => {
+                if (window.confirm('確定要清空所有供應商資料嗎？')) {
+                    setSuppliers([]);
+                    showToast('已清空所有供應商資料。');
+                }
+            };
+
+            const handleDownloadHTML = () => {
+                const htmlContent = document.documentElement.outerHTML;
+                const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'supplier_carbon_kanban.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('已成功下載本頁面的完整 HTML 檔案！');
+            };
+
+            const handleSaveSupplier = (formData) => {
+                if (formData.id) {
+                    // Update
+                    setSuppliers(suppliers.map(s => s.id === formData.id ? { ...formData, updatedAt: new Date().toISOString().split('T')[0] } : s));
+                    showToast(`已成功更新供應商：${formData.name}`);
+                } else {
+                    // Create
+                    const newId = 'sup-' + Date.now();
+                    const newSup = {
+                        ...formData,
+                        id: newId,
+                        updatedAt: new Date().toISOString().split('T')[0]
+                    };
+                    setSuppliers([newSup, ...suppliers]);
+                    showToast(`已成功新增供應商：${formData.name}`);
+                }
+                setIsModalOpen(false);
+                setCurrentSupplier(null);
+            };
+
+            const handleDeleteSupplier = (id, e) => {
+                e.stopPropagation();
+                if (window.confirm('確定要刪除此供應商卡片嗎？')) {
+                    setSuppliers(suppliers.filter(s => s.id !== id));
+                    showToast('已刪除該供應商卡片。');
+                }
+            };
+
+            const handleMoveStatus = (id, newStatus, e) => {
+                if (e) e.stopPropagation();
+                setSuppliers(suppliers.map(s => s.id === id ? { ...s, status: newStatus, updatedAt: new Date().toISOString().split('T')[0] } : s));
+            };
+
+            // Drag and drop handlers
+            const handleDragStart = (e, supplierId) => {
+                e.dataTransfer.setData('text/plain', supplierId);
+            };
+
+            const handleDragOver = (e) => {
+                e.preventDefault();
+            };
+
+            const handleDrop = (e, targetStatus) => {
+                e.preventDefault();
+                const supplierId = e.dataTransfer.getData('text/plain');
+                if (supplierId) {
+                    handleMoveStatus(supplierId, targetStatus);
+                }
+            };
+
+            // Filtered suppliers
+            const filteredSuppliers = useMemo(() => {
+                return suppliers.filter(sup => {
+                    const matchesSearch = sup.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                          sup.contact.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                          sup.notes.toLowerCase().includes(searchTerm.toLowerCase());
+                    const matchesCategory = selectedCategory === 'ALL' || sup.category === selectedCategory;
+                    const matchesStatus = selectedStatusFilter === 'ALL' || sup.status === selectedStatusFilter;
+                    return matchesSearch && matchesCategory && matchesStatus;
+                });
+            }, [suppliers, searchTerm, selectedCategory, selectedStatusFilter]);
+
+            // Statistics computation
+            const stats = useMemo(() => {
+                const total = suppliers.length;
+                const verifiedCount = suppliers.filter(s => s.status === 'verified').length;
+                const totalScope1 = suppliers.reduce((acc, s) => acc + (Number(s.scope1) || 0), 0);
+                const totalScope2 = suppliers.reduce((acc, s) => acc + (Number(s.scope2) || 0), 0);
+                const totalScope3 = suppliers.reduce((acc, s) => acc + (Number(s.scope3) || 0), 0);
+                const grandTotal = totalScope1 + totalScope2 + totalScope3;
+                return { total, verifiedCount, totalScope1, totalScope2, totalScope3, grandTotal };
+            }, [suppliers]);
+
+            return (
+                <div className="flex-1 flex flex-col">
+                    {/* Header */}
+                    <header className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-xs">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                                <div className="flex items-center space-x-3">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-md shadow-emerald-600/20">
+                                        <i data-lucide="leaf" className="w-6 h-6"></i>
+                                    </div>
+                                    <div>
+                                        <h1 className="text-xl font-bold text-slate-900 tracking-tight">供應商碳數據追蹤 Kanban</h1>
+                                        <p className="text-xs text-slate-500">Scope 1, 2, 3 供應鏈碳盤查與減碳協同管理系統</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <button 
+                                        onClick={handleLoadDemoData}
+                                        className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-medium text-sm transition border border-emerald-200 shadow-xs cursor-pointer"
+                                    >
+                                        <i data-lucide="sparkles" className="w-4 h-4 text-emerald-600"></i>
+                                        <span>一鍵載入示範資料</span>
+                                    </button>
+
+                                    <button 
+                                        onClick={handleDownloadHTML}
+                                        className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-900 font-medium text-sm transition shadow-xs cursor-pointer"
+                                    >
+                                        <i data-lucide="download" className="w-4 h-4"></i>
+                                        <span>下載 HTML</span>
+                                    </button>
+
+                                    <button 
+                                        onClick={() => { setCurrentSupplier(null); setIsModalOpen(true); }}
+                                        className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm transition shadow-sm shadow-emerald-600/20 cursor-pointer"
+                                    >
+                                        <i data-lucide="plus" className="w-4 h-4"></i>
+                                        <span>新增供應商</span>
+                                    </button>
+
+                                    <button 
+                                        onClick={handleClearAll}
+                                        className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm transition cursor-pointer"
+                                        title="清空全部資料"
+                                    >
+                                        <i data-lucide="trash-2" className="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Stats Dashboard */}
+                    <section className="bg-slate-100/70 border-b border-slate-200 py-4 px-4 sm:px-6 lg:px-8">
+                        <div className="max-w-7xl mx-auto grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                            <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex items-center space-x-3">
+                                <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                                    <i data-lucide="users" className="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <div className="text-xs font-medium text-slate-500">追蹤供應商總數</div>
+                                    <div className="text-lg font-bold text-slate-900">{stats.total} <span className="text-xs font-normal text-slate-500">家</span></div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex items-center space-x-3">
+                                <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                    <i data-lucide="check-circle" className="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <div className="text-xs font-medium text-slate-500">已納入盤查庫</div>
+                                    <div className="text-lg font-bold text-emerald-600">{stats.verifiedCount} <span className="text-xs font-normal text-slate-500">家</span></div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex items-center space-x-3">
+                                <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                                    <i data-lucide="factory" className="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <div className="text-xs font-medium text-slate-500">範疇一 (Scope 1)</div>
+                                    <div className="text-base font-bold text-slate-900">{stats.totalScope1.toLocaleString()} <span className="text-xs font-normal text-slate-500">tCO2e</span></div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex items-center space-x-3">
+                                <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                                    <i data-lucide="zap" className="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <div className="text-xs font-medium text-slate-500">範疇二 (Scope 2)</div>
+                                    <div className="text-base font-bold text-slate-900">{stats.totalScope2.toLocaleString()} <span className="text-xs font-normal text-slate-500">tCO2e</span></div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs col-span-2 sm:col-span-2 lg:col-span-1 flex items-center space-x-3">
+                                <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                                    <i data-lucide="globe" className="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <div className="text-xs font-medium text-slate-500">範疇三總計 (Scope 3)</div>
+                                    <div className="text-base font-bold text-slate-900">{stats.totalScope3.toLocaleString()} <span className="text-xs font-normal text-slate-500">tCO2e</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Filter & Search Bar */}
+                    <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
+                            <div className="relative w-full md:w-80">
+                                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                    <i data-lucide="search" className="w-4 h-4"></i>
+                                </span>
+                                <input 
+                                    type="text"
+                                    placeholder="搜尋供應商名稱、聯絡人、備註..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                                />
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                                <div className="flex items-center space-x-2 w-full sm:w-auto">
+                                    <span className="text-xs font-medium text-slate-500 whitespace-nowrap">類別：</span>
+                                    <select 
+                                        value={selectedCategory}
+                                        onChange={(e) => setSelectedCategory(e.target.value)}
+                                        className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500 w-full sm:w-auto"
+                                    >
+                                        <option value="ALL">全部分類</option>
+                                        {CATEGORIES.map(cat => (
+                                            <option key={cat} value={cat}>{cat}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="flex items-center space-x-2 w-full sm:w-auto">
+                                    <span className="text-xs font-medium text-slate-500 whitespace-nowrap">狀態：</span>
+                                    <select 
+                                        value={selectedStatusFilter}
+                                        onChange={(e) => setSelectedStatusFilter(e.target.value)}
+                                        className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500 w-full sm:w-auto"
+                                    >
+                                        <option value="ALL">全部狀態</option>
+                                        {COLUMNS.map(col => (
+                                            <option key={col.id} value={col.id}>{col.title}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Kanban Board Container */}
+                    <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-12 flex-1 flex flex-col">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start flex-1">
+                            {COLUMNS.map(column => {
+                                const columnSuppliers = filteredSuppliers.filter(s => s.status === column.id);
+                                return (
+                                    <div 
+                                        key={column.id}
+                                        onDragOver={handleDragOver}
+                                        onDrop={(e) => handleDrop(e, column.id)}
+                                        className="bg-slate-100/80 rounded-2xl border border-slate-200/80 flex flex-col max-h-[72vh] shadow-xs"
+                                    >
+                                        {/* Column Header */}
+                                        <div className="p-3.5 border-b border-slate-200 flex items-center justify-between bg-white/60 rounded-t-2xl">
+                                            <div className="flex items-center space-x-2">
+                                                <span className={`w-7 h-7 rounded-lg flex items-center justify-center border ${column.color}`}>
+                                                    <i data-lucide={column.icon} className="w-4 h-4"></i>
+                                                </span>
+                                                <h3 className="font-semibold text-sm text-slate-800">{column.title}</h3>
+                                            </div>
+                                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${column.badgeColor}`}>
+                                                {columnSuppliers.length}
+                                            </span>
+                                        </div>
+
+                                        {/* Cards Container */}
+                                        <div className="p-3 overflow-y-auto kanban-scrollbar flex-1 space-y-3 min-h-[220px]">
+                                            {columnSuppliers.length === 0 ? (
+                                                <div className="h-32 flex flex-col items-center justify-center text-slate-400 text-xs border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                                                    <i data-lucide="inbox" className="w-6 h-6 mb-1 text-slate-300"></i>
+                                                    <span>無供應商卡片</span>
+                                                </div>
+                                            ) : (
+                                                columnSuppliers.map(supplier => {
+                                                    const totalCarbon = (Number(supplier.scope1) || 0) + (Number(supplier.scope2) || 0) + (Number(supplier.scope3) || 0);
+                                                    return (
+                                                        <div
+                                                            key={supplier.id}
+                                                            draggable
+                                                            onDragStart={(e) => handleDragStart(e, supplier.id)}
+                                                            onClick={() => { setCurrentSupplier(supplier); setIsModalOpen(true); }}
+                                                            className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs hover:shadow-md transition cursor-pointer group relative flex flex-col space-y-3"
+                                                        >
+                                                            {/* Top Card Row */}
+                                                            <div className="flex items-start justify-between gap-2">
+                                                                <div>
+                                                                    <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 mb-1">
+                                                                        {supplier.category}
+                                                                    </span>
+                                                                    <h4 className="font-semibold text-slate-900 text-sm group-hover:text-emerald-600 transition">
+                                                                        {supplier.name}
+                                                                    </h4>
+                                                                </div>
+                                                                <button 
+                                                                    onClick={(e) => handleDeleteSupplier(supplier.id, e)}
+                                                                    className="text-slate-300 hover:text-red-500 transition p-1"
+                                                                    title="刪除"
+                                                                >
+                                                                    <i data-lucide="trash-2" className="w-3.5 h-3.5"></i>
+                                                                </button>
+                                                            </div>
+
+                                                            {/* Contact & Date */}
+                                                            <div className="text-xs text-slate-500 space-y-1">
+                                                                <div className="flex items-center space-x-1.5 truncate">
+                                                                    <i data-lucide="user" className="w-3 h-3 shrink-0 text-slate-400"></i>
+                                                                    <span className="truncate">{supplier.contact}</span>
+                                                                </div>
+                                                                {supplier.notes && (
+                                                                    <div className="flex items-start space-x-1.5 text-slate-600 bg-slate-50 p-1.5 rounded text-[11px] line-clamp-2">
+                                                                        <i data-lucide="file-text" className="w-3 h-3 shrink-0 text-slate-400 mt-0.5"></i>
+                                                                        <span>{supplier.notes}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Carbon Metrics Badge */}
+                                                            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                                                                <div className="text-slate-600 font-medium flex items-center space-x-1">
+                                                                    <i data-lucide="cloud" className="w-3.5 h-3.5 text-emerald-600"></i>
+                                                                    <span>總碳排: <strong className="text-slate-900">{totalCarbon.toLocaleString()}</strong> <span className="text-[10px] text-slate-500">tCO2e</span></span>
+                                                                </div>
+                                                                <span className="text-[10px] text-slate-400">{supplier.updatedAt}</span>
+                                                            </div>
+
+                                                            {/* Quick Move Status Buttons on Hover */}
+                                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-between pt-1 border-t border-dashed border-slate-200">
+                                                                <span className="text-[10px] text-slate-400 font-medium">快速移動：</span>
+                                                                <div className="flex items-center space-x-1">
+                                                                    {COLUMNS.filter(c => c.id !== supplier.status).map(c => (
+                                                                        <button
+                                                                            key={c.id}
+                                                                            onClick={(e) => handleMoveStatus(supplier.id, c.id, e)}
+                                                                            className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-emerald-100 text-slate-600 hover:text-emerald-700 text-[10px] transition"
+                                                                            title={`移至 ${c.title}`}
+                                                                        >
+                                                                            {c.title.slice(0, 2)}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </main>
+
+                    {/* Modal for Create / Edit Supplier */}
+                    {isModalOpen && (
+                        <SupplierModal 
+                            supplier={currentSupplier} 
+                            onClose={() => { setIsModalOpen(false); setCurrentSupplier(null); }}
+                            onSave={handleSaveSupplier}
+                        />
+                    )}
+
+                    {/* Toast Notification message box */}
+                    {toastMessage && (
+                        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center space-x-3 animate-fade-in border border-slate-700">
+                            <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+                                <i data-lucide="check" className="w-3.5 h-3.5"></i>
+                            </div>
+                            <span className="text-sm font-medium">{toastMessage}</span>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // Modal Component
+        function SupplierModal({ supplier, onClose, onSave }) {
+            const [formData, setFormData] = useState({
+                id: supplier ? supplier.id : null,
+                name: supplier ? supplier.name : '',
+                category: supplier ? supplier.category : '原物料',
+                contact: supplier ? supplier.contact : '',
+                scope1: supplier ? supplier.scope1 : 0,
+                scope2: supplier ? supplier.scope2 : 0,
+                scope3: supplier ? supplier.scope3 : 0,
+                status: supplier ? supplier.status : 'not_sent',
+                notes: supplier ? supplier.notes : ''
+            });
+
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, []);
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (!formData.name.trim()) {
+                    alert('請輸入供應商名稱');
+                    return;
+                }
+                onSave(formData);
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+                    <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-200 animate-scale-in">
+                        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                            <h3 className="font-bold text-slate-900 text-lg flex items-center space-x-2">
+                                <i data-lucide={supplier ? "edit-3" : "plus-circle"} className="w-5 h-5 text-emerald-600"></i>
+                                <span>{supplier ? '編輯供應商碳數據' : '新增供應商碳數據'}</span>
+                            </h3>
+                            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition">
+                                <i data-lucide="x" className="w-5 h-5"></i>
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                            <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">供應商名稱 *</label>
+                                <input 
+                                    type="text" 
+                                    required
+                                    placeholder="例如：台灣綠色原物料股份有限公司"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    className="w-full px-3.5 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-700 mb-1">供應商類別</label>
+                                    <select 
+                                        value={formData.category}
+                                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                        className="w-full px-3.5 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white"
+                                    >
+                                        {CATEGORIES.map(cat => (
+                                            <option key={cat} value={cat}>{cat}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-700 mb-1">Kanban 狀態</label>
+                                    <select 
+                                        value={formData.status}
+                                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                        className="w-full px-3.5 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white"
+                                    >
+                                        {COLUMNS.map(col => (
+                                            <option key={col.id} value={col.id}>{col.title}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">聯絡人與信箱</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="例如：陳經理 (chen@greenmat.com)"
+                                    value={formData.contact}
+                                    onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                                    className="w-full px-3.5 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                <div>
+                                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">範疇一 (tCO2e)</label>
+                                    <input 
+                                        type="number" 
+                                        min="0"
+                                        value={formData.scope1}
+                                        onChange={(e) => setFormData({ ...formData, scope1: parseFloat(e.target.value) || 0 })}
+                                        className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">範疇二 (tCO2e)</label>
+                                    <input 
+                                        type="number" 
+                                        min="0"
+                                        value={formData.scope2}
+                                        onChange={(e) => setFormData({ ...formData, scope2: parseFloat(e.target.value) || 0 })}
+                                        className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">範疇三 (tCO2e)</label>
+                                    <input 
+                                        type="number" 
+                                        min="0"
+                                        value={formData.scope3}
+                                        onChange={(e) => setFormData({ ...formData, scope3: parseFloat(e.target.value) || 0 })}
+                                        className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">查證備註與說明</label>
+                                <textarea 
+                                    rows="3"
+                                    placeholder="填寫碳盤查進度、憑證審查狀況..."
+                                    value={formData.notes}
+                                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                                    className="w-full px-3.5 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                                ></textarea>
+                            </div>
+
+                            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-200">
+                                <button 
+                                    type="button" 
+                                    onClick={onClose}
+                                    className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 text-sm font-medium transition"
+                                >
+                                    取消
+                                </button>
+                                <button 
+                                    type="submit"
+                                    className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium shadow-sm transition"
+                                >
+                                    儲存卡片
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>

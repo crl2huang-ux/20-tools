@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>員工通勤碳排試算系統</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js for visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans TC', 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-full flex flex-col">
+
+    <header class="bg-emerald-700 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-emerald-600 p-2.5 rounded-xl text-emerald-100 shadow-inner">
+                    <i class="fa-solid fa-leaf text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight">員工通勤碳排試算平台</h1>
+                    <p class="text-xs sm:text-sm text-emerald-200">綠色永續・精準估算・守護地球</p>
+                </div>
+            </div>
+            <!-- One-click demo button -->
+            <button onclick="loadDemoData()" class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-xl shadow transition duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> 一鍵載入示範資料
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left Column: Input Form -->
+        <div class="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
+            <form id="commuteForm" onsubmit="event.preventDefault(); calculateCarbon();" class="space-y-5">
+                <div class="flex items-center justify-between border-b pb-3">
+                    <h2 class="text-lg font-semibold text-slate-800 flex items-center">
+                        <i class="fa-solid fa-calculator text-emerald-600 mr-2"></i> 輸入通勤資訊
+                    </h2>
+                    <span class="text-xs text-slate-400">* 必填欄位</span>
+                </div>
+
+                <!-- Employee Name / ID -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">員工姓名 / 編號</label>
+                    <input type="text" id="employeeName" placeholder="例如：王小明 / A1024" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm transition" required>
+                </div>
+
+                <!-- Residential District (Taiwan) -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">居住行政區</label>
+                    <select id="district" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm transition bg-white" required>
+                        <option value="" disabled selected>請選擇居住行政區</option>
+                        <optgroup label="台北市">
+                            <option value="Taipei_Daan">大安區</option>
+                            <option value="Taipei_Xinyi">信義區</option>
+                            <option value="Taipei_Zhongshan">中山區</option>
+                            <option value="Taipei_Zhongzheng">中正區</option>
+                            <option value="Taipei_Songshan">松山區</option>
+                            <option value="Taipei_Wanhua">萬華區</option>
+                            <option value="Taipei_Datong">大同區</option>
+                            <option value="Taipei_Shilin">士林區</option>
+                            <option value="Taipei_Beitou">北投區</option>
+                            <option value="Taipei_Neihu">內湖區</option>
+                            <option value="Taipei_Nangang">南港區</option>
+                            <option value="Taipei_Wenshan">文山區</option>
+                        </optgroup>
+                        <optgroup label="新北市">
+                            <option value="NewTaipei_Banqiao">板橋區</option>
+                            <option value="NewTaipei_Xinzhuang">新莊區</option>
+                            <option value="NewTaipei_Zhonghe">中和區</option>
+                            <option value="NewTaipei_Yonghe">永和區</option>
+                            <option value="NewTaipei_Sanchong">三重區</option>
+                            <option value="NewTaipei_Xindian">新店區</option>
+                            <option value="NewTaipei_Tucheng">土城區</option>
+                            <option value="NewTaipei_Banqiao">汐止區</option>
+                        </optgroup>
+                        <optgroup label="其他主要地區">
+                            <option value="Keelung">基隆市</option>
+                            <option value="Taoyuan_Taoyuan">桃園市桃園區</option>
+                            <option value="Taoyuan_Zhongli">桃園市中壢區</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <!-- Office Location -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">上班辦公地點</label>
+                    <select id="officeLocation" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm transition bg-white" required>
+                        <option value="" disabled selected>請選擇辦公室據點</option>
+                        <option value="TaipeiHQ">台北總部 (信義計畫區)</option>
+                        <option value="NeihuOffice">內湖科技園區辦公室</option>
+                        <option value="BanqiaoBranch">新北板橋分公司</option>
+                        <option value="TaoyuanLogistics">桃園物流暨辦公中心</option>
+                    </select>
+                </div>
+
+                <!-- Transport Mode -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">主要通勤交通工具</label>
+                    <select id="transportMode" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm transition bg-white" required>
+                        <option value="" disabled selected>請選擇交通工具</option>
+                        <option value="mrt">捷運 / 火車 (大眾運輸)</option>
+                        <option value="bus">市區公車 / 客運</option>
+                        <option value="car_gas">汽油車 (小客車)</option>
+                        <option value="car_ev">電動車 (EV)</option>
+                        <option value="scooter_gas">機車 (油車)</option>
+                        <option value="scooter_ev">機車 (電動)</option>
+                        <option value="bicycle_walk">步行 / 自行車 (零碳)</option>
+                    </select>
+                </div>
+
+                <!-- Working Days per Month -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">每月平均上班天數</label>
+                    <input type="number" id="workDays" min="1" max="31" value="22" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm transition" required>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="pt-2 flex gap-3">
+                    <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-4 rounded-xl shadow transition duration-200 flex items-center justify-center">
+                        <i class="fa-solid fa-calculator mr-2"></i> 開始試算
+                    </button>
+                    <button type="button" onclick="resetForm()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2.5 px-4 rounded-xl transition duration-200">
+                        重設
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="lg:col-span-7 flex flex-col gap-6">
+            
+            <!-- Result Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-4">
+                    <div class="bg-emerald-50 text-emerald-600 p-4 rounded-xl">
+                        <i class="fa-solid fa-route text-2xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium text-slate-500 uppercase">單日來回通勤距離估算</p>
+                        <p id="resDistance" class="text-2xl font-bold text-slate-800 mt-1">0.0 <span class="text-sm font-normal text-slate-500">公里</span></p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-4">
+                    <div class="bg-amber-50 text-amber-600 p-4 rounded-xl">
+                        <i class="fa-solid fa-smog text-2xl">x</i>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium text-slate-500 uppercase">單月預估碳排放量</p>
+                        <p id="resCarbon" class="text-2xl font-bold text-slate-800 mt-1">0.00 <span class="text-sm font-normal text-slate-500">公斤 CO₂e</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Breakdown Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex-grow flex flex-col justify-between">
+                <div>
+                    <h3 class="text-base font-semibold text-slate-800 mb-4 flex items-center justify-between">
+                        <span><i class="fa-solid fa-chart-pie text-emerald-600 mr-2"></i> 碳排結構與永續建議</span>
+                        <span id="badgeLevel" class="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-medium">尚未計算</span>
+                    </h3>
+                    
+                    <div id="resultDescription" class="text-sm text-slate-600 bg-slate-50 p-4 rounded-xl mb-4 border border-slate-100">
+                        請填寫左側欄位並點擊「開始試算」以產生個人通勤碳足跡報告，或點擊上方「一鍵載入示範資料」快速體驗。
+                    </div>
+
+                    <!-- Comparison Chart Container -->
+                    <div class="relative h-48 w-full">
+                        <canvas id="carbonComparisonChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Footer tip -->
+                <div class="mt-6 pt-4 border-t border-slate-100 text-xs text-slate-400 flex items-center justify-between">
+                    <span>基於台灣交通部載具碳排係數估算</span>
+                    <span id="timestamp"></span>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <script>
+        // Predefined base distance matrix lookup table (approximate km between districts and offices)
+        const distanceTable = {
+            "Taipei_Daan": { "TaipeiHQ": 4.5, "NeihuOffice": 8.0, "BanqiaoBranch": 9.5, "TaoyuanLogistics": 32.0 },
+            "Taipei_Xinyi": { "TaipeiHQ": 2.5, "NeihuOffice": 7.5, "BanqiaoBranch": 11.0, "TaoyuanLogistics": 34.0 },
+            "Taipei_Zhongshan": { "TaipeiHQ": 5.0, "NeihuOffice": 6.5, "BanqiaoBranch": 11.5, "TaoyuanLogistics": 33.5 },
+            "Taipei_Zhongzheng": { "TaipeiHQ": 5.5, "NeihuOffice": 9.0, "BanqiaoBranch": 8.5, "TaoyuanLogistics": 30.5 },
+            "Taipei_Songshan": { "TaipeiHQ": 3.5, "NeihuOffice": 5.5, "BanqiaoBranch": 12.0, "TaoyuanLogistics": 35.0 },
+            "Taipei_Wanhua": { "TaipeiHQ": 7.0, "NeihuOffice": 11.0, "BanqiaoBranch": 6.0, "TaoyuanLogistics": 28.0 },
+            "Taipei_Datong": { "TaipeiHQ": 6.0, "NeihuOffice": 8.5, "BanqiaoBranch": 10.0, "TaoyuanLogistics": 32.0 },
+            "Taipei_Shilin": { "TaipeiHQ": 9.5, "NeihuOffice": 8.0, "BanqiaoBranch": 15.0, "TaoyuanLogistics": 37.0 },
+            "Taipei_Beitou": { "TaipeiHQ": 13.0, "NeihuOffice": 12.0, "BanqiaoBranch": 18.0, "TaoyuanLogistics": 40.0 },
+            "Taipei_Neihu": { "TaipeiHQ": 7.5, "NeihuOffice": 3.0, "BanqiaoBranch": 16.0, "TaoyuanLogistics": 39.0 },
+            "Taipei_Nangang": { "TaipeiHQ": 6.5, "NeihuOffice": 4.5, "BanqiaoBranch": 17.0, "TaoyuanLogistics": 40.0 },
+            "Taipei_Wenshan": { "TaipeiHQ": 8.5, "NeihuOffice": 13.0, "BanqiaoBranch": 10.5, "TaoyuanLogistics": 31.0 },
+            "NewTaipei_Banqiao": { "TaipeiHQ": 10.5, "NeihuOffice": 16.0, "BanqiaoBranch": 3.5, "TaoyuanLogistics": 24.0 },
+            "NewTaipei_Xinzhuang": { "TaipeiHQ": 13.0, "NeihuOffice": 17.5, "BanqiaoBranch": 7.0, "TaoyuanLogistics": 22.0 },
+            "NewTaipei_Zhonghe": { "TaipeiHQ": 9.0, "NeihuOffice": 14.5, "BanqiaoBranch": 5.0, "TaoyuanLogistics": 27.0 },
+            "NewTaipei_Yonghe": { "TaipeiHQ": 7.5, "NeihuOffice": 13.0, "BanqiaoBranch": 6.5, "TaoyuanLogistics": 29.0 },
+            "NewTaipei_Sanchong": { "TaipeiHQ": 8.5, "NeihuOffice": 11.5, "BanqiaoBranch": 9.0, "TaoyuanLogistics": 30.0 },
+            "NewTaipei_Xindian": { "TaipeiHQ": 9.5, "NeihuOffice": 16.0, "BanqiaoBranch": 12.0, "TaoyuanLogistics": 33.0 },
+            "NewTaipei_Tucheng": { "TaipeiHQ": 13.5, "NeihuOffice": 19.0, "BanqiaoBranch": 6.5, "TaoyuanLogistics": 23.0 },
+            "Keelung": { "TaipeiHQ": 28.0, "NeihuOffice": 24.0, "BanqiaoBranch": 35.0, "TaoyuanLogistics": 55.0 },
+            "Taoyuan_Taoyuan": { "TaipeiHQ": 32.0, "NeihuOffice": 39.0, "BanqiaoBranch": 24.0, "TaoyuanLogistics": 5.0 },
+            "Taoyuan_Zhongli": { "TaipeiHQ": 39.0, "NeihuOffice": 46.0, "BanqiaoBranch": 31.0, "TaoyuanLogistics": 12.0 }
+        };
+
+        // Carbon emission factors (kg CO2e per passenger-kilometer)
+        const emissionFactors = {
+            "mrt": 0.036,          // Mass transit / Rail
+            "bus": 0.052,          // City bus
+            "car_gas": 0.155,      // Gasoline car (single driver avg)
+            "car_ev": 0.065,       // Electric car (grid adjusted)
+            "scooter_gas": 0.068,  // Gasoline scooter
+            "scooter_ev": 0.028,   // Electric scooter
+            "bicycle_walk": 0.0    // Zero emission
+        };
+
+        let comparisonChart = null;
+
+        // Initialize Chart on load
+        window.onload = function() {
+            const ctx = document.getElementById('carbonComparisonChart').getContext('2d');
+            comparisonChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['您的通勤方式', '汽油小客車', '機車(油)', '捷運/大眾'],
+                    datasets: [{
+                        label: '單月碳排放量 (kg CO₂e)',
+                        data: [0, 0, 0, 0],
+                        backgroundColor: [
+                            'rgba(16, 185, 129, 0.8)',
+                            'rgba(239, 68, 68, 0.5)',
+                            'rgba(245, 158, 11, 0.5)',
+                            'rgba(59, 130, 246, 0.5)'
+                        ],
+                        borderColor: [
+                            'rgb(16, 185, 129)',
+                            'rgb(239, 68, 68)',
+                            'rgb(245, 158, 11)',
+                            'rgb(59, 130, 246)'
+                        ],
+                        borderWidth: 1,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#f1f5f9' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+            document.getElementById('timestamp').innerText = '更新時間: ' + new Date().toLocaleDateString();
+        };
+
+        // One-click demo data function
+        function loadDemoData() {
+            document.getElementById('employeeName').value = '林小美 (示範)';
+            document.getElementById('district').value = 'NewTaipei_Banqiao';
+            document.getElementById('officeLocation').value = 'TaipeiHQ';
+            document.getElementById('transportMode').value = 'scooter_gas';
+            document.getElementById('workDays').value = '22';
+            
+            // Trigger calculation automatically
+            calculateCarbon();
+        }
+
+        // Reset form function
+        function resetForm() {
+            document.getElementById('commuteForm').reset();
+            document.getElementById('resDistance').innerHTML = '0.0 <span class="text-sm font-normal text-slate-500">公里</span>';
+            document.getElementById('resCarbon').innerHTML = '0.00 <span class="text-sm font-normal text-slate-500">公斤 CO₂e</span>';
+            document.getElementById('badgeLevel').innerText = '尚未計算';
+            document.getElementById('badgeLevel').className = 'text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-medium';
+            document.getElementById('resultDescription').innerText = '請填寫左側欄位並點擊「開始試算」以產生個人通勤碳足跡報告，或點擊上方「一鍵載入示範資料」快速體驗。';
+            
+            if (comparisonChart) {
+                comparisonChart.data.datasets[0].data = [0, 0, 0, 0];
+                comparisonChart.update();
+            }
+        }
+
+        // Main calculation logic
+        function calculateCarbon() {
+            const district = document.getElementById('district').value;
+            const office = document.getElementById('officeLocation').value;
+            const mode = document.getElementById('transportMode').value;
+            const workDays = parseFloat(document.getElementById('workDays').value) || 22;
+
+            if (!district || !office || !mode) {
+                alert('請完整填寫所有必要欄位！');
+                return;
+            }
+
+            // Get one-way distance and multiply by 2 for round trip
+            let oneWayDist = 10.0; // default fallback
+            if (distanceTable[district] && distanceTable[district][office] !== undefined) {
+                oneWayDist = distanceTable[district][office];
+            }
+            const roundTripDist = oneWayDist * 2;
+            const monthlyDist = roundTripDist * workDays;
+
+            // Calculate carbon emission
+            const factor = emissionFactors[mode] !== undefined ? emissionFactors[mode] : 0.1;
+            const monthlyCarbon = monthlyDist * factor;
+
+            // Comparison benchmarks for chart
+            const carbonGasCar = monthlyDist * emissionFactors['car_gas'];
+            const carbonScooter = monthlyDist * emissionFactors['scooter_gas'];
+            const carbonMrt = monthlyDist * emissionFactors['mrt'];
+
+            // Update UI text
+            document.getElementById('resDistance').innerHTML = `${roundTripDist.toFixed(1)} <span class="text-sm font-normal text-slate-500">公里 (單日)</span>`;
+            document.getElementById('resCarbon').innerHTML = `${monthlyCarbon.toFixed(2)} <span class="text-sm font-normal text-slate-500">公斤 CO₂e</span>`;
+
+            // Evaluate eco-level & description
+            let badgeText = '一般通勤';
+            let badgeClass = 'text-xs px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 font-medium';
+            let desc = '';
+
+            if (mode === 'bicycle_walk') {
+                badgeText = '極致綠色 🌿';
+                badgeClass = 'text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 font-medium';
+                desc = `太棒了！您採用零碳排放的步行或自行車通勤，每月為地球減少了約 ${(monthlyDist * 0.155).toFixed(1)} 公斤的碳排放，是企業永續的模範員工！`;
+            } else if (mode === 'mrt' || mode === 'bus' || mode === 'scooter_ev') {
+                badgeText = '低碳環保 💚';
+                badgeClass = 'text-xs px-2.5 py-1 rounded-full bg-teal-100 text-teal-700 font-medium';
+                desc = `您選擇大眾運輸或綠能載具，相較於汽油小客車通勤，每月幫公司節省了顯著的碳足跡，持續保持！`;
+            } else {
+                badgeText = '改善空間 ⚠️️';
+                badgeClass = 'text-xs px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 font-medium';
+                desc = `您目前的通勤方式碳排較高。若能轉乘捷運/火車，或者改用電動車/共乘，每月可望降低超過 40% 的碳排放量。`;
+            }
+
+            const badge = document.getElementById('badgeLevel');
+            badge.innerText = badgeText;
+            badge.className = badgeClass;
+            document.getElementById('resultDescription').innerText = desc;
+
+            // Update Chart
+            if (comparisonChart) {
+                comparisonChart.data.datasets[0].data = [
+                    parseFloat(monthlyCarbon.toFixed(2)),
+                    parseFloat(carbonGasCar.toFixed(2)),
+                    parseFloat(carbonScooter.toFixed(2)),
+                    parseFloat(carbonMrt.toFixed(2))
+                ];
+                comparisonChart.update();
+            }
+        }
+    </script>
+</body>
+</html>

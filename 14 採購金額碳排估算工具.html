@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>採購金額碳排估算工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <header class="bg-emerald-700 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-2">
+            <div class="flex items-center space-x-3">
+                <div class="bg-white/10 p-2.5 rounded-xl">
+                    <i class="fa-solid fa-seedling text-emerald-300 text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">採購金額碳排估算工具</h1>
+                    <p class="text-xs text-emerald-200">基於經濟部/國際投入產出法(EEIO)之金額排放強度評估</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="loadDemoData()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 border border-emerald-500 shadow-sm">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> 一鍵載入示範資料
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left Column: Input Form & Item List -->
+        <section class="lg:col-span-7 flex flex-col gap-6">
+            
+            <!-- Card: Add / Manage Purchase Items -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                        <i class="fa-solid fa-cart-shopping text-emerald-600"></i> 採購項目清單
+                    </h2>
+                    <span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-medium" id="itemCountBadge">共 0 項</span>
+                </div>
+
+                <!-- Input Form -->
+                <form id="purchaseForm" onsubmit="addItem(event)" class="grid grid-cols-1 sm:grid-cols-12 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4">
+                    <div class="sm:col-span-5">
+                        <label class="block text-xs font-medium text-slate-600 mb-1">設備 / 項目名稱</label>
+                        <input type="text" id="itemName" placeholder="例如：精密CNC加工機" required
+                            class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div class="sm:col-span-4">
+                        <label class="block text-xs font-medium text-slate-600 mb-1">產業類別</label>
+                        <select id="industryCategory" required onchange="updateFactorPreview()"
+                            class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            <!-- Populated via JavaScript -->
+                        </select>
+                    </div>
+                    <div class="sm:col-span-3">
+                        <label class="block text-xs font-medium text-slate-600 mb-1">採購金額 (TWD)</label>
+                        <input type="number" id="purchaseAmount" placeholder="1500000" min="1" required
+                            class="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    
+                    <div class="sm:col-span-12 flex justify-between items-center mt-1">
+                        <div class="text-xs text-slate-500">
+                            預設排放強度：<span id="factorPreview" class="font-semibold text-emerald-700">0.00</span> kgCO2e / 百萬元 (或對應單位)
+                        </div>
+                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus"></i> 新增項目
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Table of Items -->
+                <div class="overflow-x-auto rounded-xl border border-slate-200">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 text-xs uppercase tracking-wider">
+                                <th class="p-3 font-semibold">項目名稱</th>
+                                <th class="p-3 font-semibold">產業類別</th>
+                                <th class="p-3 font-semibold text-right">金額 (TWD)</th>
+                                <th class="p-3 font-semibold text-right">碳排 (噸 CO2e)</th>
+                                <th class="p-3 font-semibold text-center w-16">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemTableBody" class="divide-y divide-slate-200 bg-white">
+                            <tr>
+                                <td colspan="5" class="p-6 text-center text-slate-400 text-sm">
+                                    尚無採購項目，請自行新增或點擊上方「一鍵載入示範資料」
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Card: Industry Database Reference -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h3 class="text-md font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-database text-emerald-600"></i> 內政與工業物聯網產業排放強度對照表
+                </h3>
+                <p class="text-xs text-slate-500 mb-3">
+                    本工具採用綜合投入產出法(EEIO)估算每台幣百萬或每百萬金額所產生之溫室氣體排放當量 (kgCO2e / 百萬元)：
+                </p>
+                <div class="max-h-48 overflow-y-auto pr-1 border border-slate-100 rounded-xl">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 sticky top-0 text-slate-600">
+                            <tr>
+                                <th class="p-2">產業代碼與名稱</th>
+                                <th class="p-2 text-right">排放強度 (kgCO2e / 百萬元)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="industryFactorTableBody" class="divide-y divide-slate-100">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Right Column: Summary Dashboard & Charts -->
+        <section class="lg:col-span-5 flex flex-col gap-6">
+            
+            <!-- Summary KPI Card -->
+            <div class="bg-gradient-to-br from-emerald-800 to-emerald-950 text-white rounded-2xl p-6 shadow-md relative overflow-hidden flex flex-col justify-between">
+                <div class="absolute -right-6 -bottom-6 opacity-10 text-9xl">
+                    <i class="fa-solid fa-earth-asia"></i>
+                </div>
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs uppercase tracking-wider text-emerald-300 font-semibold">總碳排估算結果</span>
+                        <span class="bg-emerald-700/60 text-emerald-200 text-xs px-2 py-0.5 rounded-full" id="currencyBadge">TWD</span>
+                    </div>
+                    <div class="text-3xl sm:text-4xl font-extrabold tracking-tight mt-2 flex items-baseline gap-2">
+                        <span id="totalCarbonEmissions">0.00</span>
+                        <span class="text-sm font-normal text-emerald-300">公噸 CO2e</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-emerald-700/50">
+                    <div>
+                        <div class="text-xs text-emerald-300">總採購金額</div>
+                        <div class="text-lg font-semibold mt-0.5" id="totalAmountDisplay">NT$ 0</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-emerald-300">平均碳排強度</div>
+                        <div class="text-lg font-semibold mt-0.5" id="avgIntensityDisplay">0 kg/NT$M</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col">
+                <h3 class="text-md font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-emerald-600"></i> 各產業碳排佔比分佈
+                </h3>
+                <div class="relative flex-grow flex items-center justify-center min-h-[240px]">
+                    <canvas id="emissionChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Export & Action Buttons -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-wrap gap-3 justify-between items-center">
+                <button onclick="clearAllItems()" class="text-rose-600 hover:text-rose-700 text-sm font-medium px-3 py-2 rounded-lg hover:bg-rose-50 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-trash-can"></i> 清空全部
+                </button>
+                <div class="flex gap-2">
+                    <button onclick="exportCSV()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-download"></i> 匯出報表
+                    </button>
+                    <button onclick="showInfoModal()" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-sm font-medium px-4 py-2 rounded-lg transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-info"></i> 計算說明
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <div id="infoModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-circle-info text-emerald-600"></i> 碳排估算方法與說明
+                </h3>
+                <button onclick="closeInfoModal()" class="text-slate-400 hover:text-slate-600 text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="text-sm text-slate-600 space-y-3 leading-relaxed">
+                <p>本工具依據經濟部工業局與國際投入產出資料庫（EEIO，Environmentally Extended Input-Output Analysis）架構設計，協助企業在缺乏詳細供應商碳帳簿時，透過<strong>採購金額與產業別排放強度</strong>快速估算範疇三（Category 1: 購買之商品與服務 / 資本財）碳排放量。</p>
+                <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-100 text-emerald-900 font-mono text-xs">
+                    公式：碳排量 (公噸 CO2e) = [採購金額 (TWD) / 1,000,000] × [產業排放強度 (kgCO2e / 百萬元)] / 1,000
+                </div>
+                <p class="text-xs text-slate-500">註：計算結果屬推估參考值，建議未來逐步收集直接供應商的碳盤查數據（如活動數據或原物料重量）以提升精確度。</p>
+            </div>
+            <div class="mt-6 text-right">
+                <button onclick="closeInfoModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-5 py-2 rounded-lg transition">
+                    了解
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Industry database with default emission intensities (kgCO2e per million TWD)
+        const industryFactors = [
+            { id: 'machinery', name: '機械設備製造業 (General Machinery)', intensity: 142000 },
+            { id: 'semiconductor', name: '半導體及電子零組件製造業 (Semiconductors)', intensity: 215000 },
+            { id: 'metal', name: '金屬製品製造業 (Metal Products)', intensity: 310000 },
+            { id: 'plastic', name: '塑膠製品製造業 (Plastic Products)', intensity: 280000 },
+            { id: 'computer', name: '電腦、電子產品及光學製品製造業', intensity: 110000 },
+            { id: 'electrical', name: '電力設備及配備製造業 (Electrical Equipment)', intensity: 175000 },
+            { id: 'transport', name: '運輸工具製造業 (Transport Equipment)', intensity: 160000 },
+            { id: 'chemical', name: '化學材料製造業 (Chemical Materials)', intensity: 520000 },
+            { id: 'construction', name: '營建工程與廠房設施 (Construction)', intensity: 190000 },
+            { id: 'service', name: '專業、科學及技術服務業 (Professional Services)', intensity: 45000 }
+        ];
+
+        // Current list of items added by user
+        let items = [];
+        let emissionChartInstance = null;
+
+        // Initialize application on load
+        window.onload = function() {
+            populateIndustryDropdown();
+            populateIndustryTable();
+            renderTable();
+            updateChart();
+        };
+
+        // Populate industry dropdown options
+        function populateIndustryDropdown() {
+            const select = document.getElementById('industryCategory');
+            select.innerHTML = '';
+            industryFactors.forEach(ind => {
+                const opt = document.createElement('option');
+                opt.value = ind.id;
+                opt.textContent = ind.name;
+                select.appendChild(opt);
+            });
+            updateFactorPreview();
+        }
+
+        // Populate reference table for industry factors
+        function populateIndustryTable() {
+            const tbody = document.getElementById('industryFactorTableBody');
+            tbody.innerHTML = '';
+            industryFactors.forEach(ind => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-2 text-slate-800 font-medium">${ind.name}</td>
+                    <td class="p-2 text-right text-emerald-700 font-mono font-semibold">${ind.intensity.toLocaleString()}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Update factor preview label when dropdown changes
+        function updateFactorPreview() {
+            const selectedId = document.getElementById('industryCategory').value;
+            const factor = industryFactors.find(f => f.id === selectedId);
+            const preview = document.getElementById('factorPreview');
+            if (factor) {
+                preview.textContent = factor.intensity.toLocaleString();
+            }
+        }
+
+        // Add purchase item from form
+        function addItem(event) {
+            event.preventDefault();
+            const name = document.getElementById('itemName').value.trim();
+            const industryId = document.getElementById('industryCategory').value;
+            const amount = parseFloat(document.getElementById('purchaseAmount').value);
+
+            const industryObj = industryFactors.find(f => f.id === industryId);
+            if (!industryObj || isNaN(amount)) return;
+
+            // Calculate carbon emission in tonnes CO2e
+            // Formula: (Amount / 1,000,000) * Intensity (kgCO2e) / 1,000 = tonnes CO2e
+            const emissionsTonnes = (amount / 1000000) * industryObj.intensity / 1000;
+
+            const newItem = {
+                id: Date.now(),
+                name: name,
+                industryId: industryId,
+                industryName: industryObj.name.split(' ')[0],
+                amount: amount,
+                intensity: industryObj.intensity,
+                emissions: emissionsTonnes
+            };
+
+            items.push(newItem);
+            document.getElementById('purchaseForm').reset();
+            updateFactorPreview();
+            renderTable();
+            updateChart();
+        }
+
+        // Delete single item
+        function deleteItem(id) {
+            items = items.filter(item => item.id !== id);
+            renderTable();
+            updateChart();
+        }
+
+        // Clear all items
+        function clearAllItems() {
+            if (items.length === 0) return;
+            if (confirm('確定要清空所有採購項目嗎？')) {
+                items = [];
+                renderTable();
+                updateChart();
+            }
+        }
+
+        // Load demo data function (一鍵載入示範資料)
+        function loadDemoData() {
+            items = [
+                { id: 101, name: '精密五軸CNC切削中心機', industryId: 'machinery', industryName: '機械設備製造業', amount: 4500000, intensity: 142000, emissions: (4500000/1000000)*142000/1000 },
+                { id: 102, name: '自動化晶圓檢測設備', industryId: 'semiconductor', industryName: '半導體及電子零組件製造業', amount: 12000000, intensity: 215000, emissions: (12000000/1000000)*215000/1000 },
+                { id: 103, name: '廠房不鏽鋼輸送管線架', industryId: 'metal', industryName: '金屬製品製造業', amount: 1800000, intensity: 310000, emissions: (1800000/1000000)*310000/1000 },
+                { id: 104, name: '辦公室筆記型電腦與顯示器批次', industryId: 'computer', industryName: '電腦、電子產品', amount: 2200000, intensity: 110000, emissions: (2200000/1000000)*110000/1000 }
+            ];
+            renderTable();
+            updateChart();
+        }
+
+        // Render main item table & summary totals
+        function renderTable() {
+            const tbody = document.getElementById('itemTableBody');
+            const itemCountBadge = document.getElementById('itemCountBadge');
+            itemCountBadge.textContent = `共 ${items.length} 項`;
+
+            if (items.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="p-6 text-center text-slate-400 text-sm">
+                            尚無採購項目，請自行新增或點擊上方「一鍵載入示範資料」
+                        </td>
+                    </tr>
+                `;
+                document.getElementById('totalCarbonEmissions').textContent = '0.00';
+                document.getElementById('totalAmountDisplay').textContent = 'NT$ 0';
+                document.getElementById('avgIntensityDisplay').textContent = '0 kg/NT$M';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            let totalAmt = 0;
+            let totalCarb = 0;
+
+            items.forEach(item => {
+                totalAmt += item.amount;
+                totalCarb += item.emissions;
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition';
+                tr.innerHTML = `
+                    <td class="p-3 font-medium text-slate-900">${item.name}</td>
+                    <td class="p-3 text-slate-600 text-xs">${item.industryName}</td>
+                    <td class="p-3 text-right font-mono text-slate-700">NT$ ${item.amount.toLocaleString()}</td>
+                    <td class="p-3 text-right font-mono font-semibold text-emerald-700">${item.emissions.toFixed(2)} 噸</td>
+                    <td class="p-3 text-center">
+                        <button onclick="deleteItem(${item.id})" class="text-slate-400 hover:text-rose-600 p-1 rounded transition" title="刪除項目">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('totalCarbonEmissions').textContent = totalCarb.toFixed(2);
+            document.getElementById('totalAmountDisplay').textContent = `NT$ ${totalAmt.toLocaleString()}`;
+            
+            const avgIntensity = totalAmt > 0 ? (totalCarb * 1000 / (totalAmt / 1000000)) : 0;
+            document.getElementById('avgIntensityDisplay').textContent = `${Math.round(avgIntensity).toLocaleString()} kg/NT$M`;
+        }
+
+        // Update Chart.js visualization
+        function updateChart() {
+            const ctx = document.getElementById('emissionChart').getContext('2d');
+            
+            // Group emissions by industry name
+            const grouped = {};
+            items.forEach(item => {
+                const label = item.industryName;
+                grouped[label] = (grouped[label] || 0) + item.emissions;
+            });
+
+            const labels = Object.keys(grouped);
+            const dataVals = Object.values(grouped);
+
+            if (emissionChartInstance) {
+                emissionChartInstance.destroy();
+            }
+
+            if (labels.length === 0) {
+                // Render empty state or placeholder chart
+                emissionChartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['尚無資料'],
+                        datasets: [{ data: [1], backgroundColor: ['#e2e8f0'] }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } }
+                    }
+                });
+                return;
+            }
+
+            const bgColors = [
+                '#059669', '#10b981', '#34d399', '#6ee7b7', 
+                '#047857', '#065f46', '#022c22', '#6366f1', '#f59e0b', '#ec4899'
+            ];
+
+            emissionChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: dataVals,
+                        backgroundColor: bgColors.slice(0, labels.length),
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                font: { size: 11, family: 'Inter' }
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        }
+
+        // Export data to CSV
+        function exportCSV() {
+            if (items.length === 0) {
+                alert('目前沒有資料可供匯出。');
+                return;
+            }
+
+            let csvContent = "\uFEFF項目名稱,產業類別,採購金額(TWD),碳排強度(kgCO2e/百萬),估算碳排量(公噸CO2e)\n";
+            items.forEach(item => {
+                csvContent += `"${item.name}","${item.industryName}",${item.amount},${item.intensity},${item.emissions.toFixed(2)}\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `採購碳排估算報表_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Modal controls
+        function showInfoModal() {
+            document.getElementById('infoModal').classList.remove('hidden');
+        }
+
+        function closeInfoModal() {
+            document.getElementById('infoModal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>

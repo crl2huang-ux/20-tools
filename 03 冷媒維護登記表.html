@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>冷媒維護登記與碳排計算系統</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between">
+
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <svg class="w-6 h-6 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                </svg>
+                <h1 class="text-lg font-bold tracking-wide">冷媒維護與碳排登記</h1>
+            </div>
+            <button onclick="loadDemoData()" class="bg-brand-600 hover:bg-brand-700 active:scale-95 transition text-white text-xs sm:text-sm font-medium px-3.5 py-2 rounded-xl shadow-sm flex items-center gap-1.5 cursor-pointer">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+                一鍵載入示範資料
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 py-6 w-full flex-grow">
+        
+        <!-- Instruction / Status banner -->
+        <div class="mb-6 bg-brand-50 border border-brand-500/30 rounded-2xl p-4 text-slate-700 text-sm shadow-sm flex items-start gap-3">
+            <svg class="w-5 h-5 text-brand-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div>
+                <span class="font-semibold text-brand-700">操作提示：</span>
+                請填寫以下空調/冷凍設備維護紀錄。系統會依據所選冷媒種類自動帶入全球暖化潛勢 (GWP) 數值，並即時計算出二氧化碳當量（CO₂e）。
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <!-- Left Form Section (2 cols) -->
+            <div class="md:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 sm:p-6">
+                <h2 class="text-base font-semibold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                    維護與填充資訊表單
+                </h2>
+
+                <form id="refrigerantForm" class="space-y-4" onsubmit="event.preventDefault(); handleSubmit();">
+                    
+                    <!-- Equipment Name -->
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">設備名稱 / 編號</label>
+                        <input type="text" id="eqName" required placeholder="例如：大樓中央空調主機 #1" 
+                            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition">
+                    </div>
+
+                    <!-- Maintenance Type & Date -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">維護作業類型</label>
+                            <select id="maintType" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition">
+                                <option value="定期保養檢測">定期保養檢測</option>
+                                <option value="冷媒補充 (抓漏後)">冷媒補充 (抓漏後)</option>
+                                <option value="設備大修重灌">設備大修重灌</option>
+                                <option value="設備退役回收">設備退役回收</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">作業日期</label>
+                            <input type="date" id="maintDate" required 
+                                class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition">
+                        </div>
+                    </div>
+
+                    <!-- Refrigerant Type & GWP -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">冷媒種類</label>
+                            <select id="refType" onchange="handleRefChange()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition">
+                                <option value="">-- 請選擇冷媒 --</option>
+                                <option value="R-410A">R-410A (GWP: 2088)</option>
+                                <option value="R-134a">R-134a (GWP: 1430)</option>
+                                <option value="R-32">R-32 (GWP: 675)</option>
+                                <option value="R-407C">R-407C (GWP: 1774)</option>
+                                <option value="R-22">R-22 (GWP: 1810)</option>
+                                <option value="R-123">R-123 (GWP: 77)</option>
+                                <option value="R-717">R-717 氨/Ammonia (GWP: 0)</option>
+                                <option value="custom">自訂 GWP 數值</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">全暖化潛勢 (GWP)</label>
+                            <input type="number" id="gwpVal" readonly placeholder="自動帶入" 
+                                class="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-600 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Custom GWP Input (Hidden by default) -->
+                    <div id="customGwpContainer" class="hidden">
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">自訂 GWP 數值</label>
+                        <input type="number" id="customGwp" oninput="calculateEmission()" placeholder="輸入自訂 GWP" 
+                            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition">
+                    </div>
+
+                    <!-- Quantity Added -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">添加/填充量 (公斤 kg)</label>
+                            <input type="number" step="0.01" min="0" id="refQty" oninput="calculateEmission()" required placeholder="0.00" 
+                                class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">回收量 (公斤 kg)</label>
+                            <input type="number" step="0.01" min="0" id="refRecycled" placeholder="0.00" 
+                                class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition">
+                        </div>
+                    </div>
+
+                    <!-- Operator Notes -->
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">作業人員與備註說明</label>
+                        <textarea id="refNotes" rows="2" placeholder="紀錄洩漏原因、檢修工單編號或人員姓名..." 
+                            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition resize-none"></textarea>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="pt-2">
+                        <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 active:scale-[0.99] transition text-white font-medium py-3 rounded-xl shadow-md text-sm flex items-center justify-center gap-2 cursor-pointer">
+                            <svg class="w-4 h-4 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            儲存並記錄維護明細
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Right Summary & Real-time Calculation Card (1 col) -->
+            <div class="space-y-6">
+                
+                <!-- Real-time Result Card -->
+                <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl shadow-sm p-6 relative overflow-hidden flex flex-col justify-between">
+                    <div class="absolute -right-6 -bottom-6 w-32 h-32 bg-brand-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                    <div>
+                        <div class="text-xs uppercase tracking-wider text-brand-400 font-semibold mb-1">即時碳排放計算結果</div>
+                        <h3 class="text-lg font-bold">CO₂e 排放預估</h3>
+                    </div>
+                    
+                    <div class="my-6 space-y-4">
+                        <div>
+                            <div class="text-xs text-slate-400">當前選擇冷媒 GWP</div>
+                            <div id="displayGwp" class="text-2xl font-bold tracking-tight">0</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-slate-400">碳排放量 (CO₂e)</div>
+                            <div class="flex items-baseline gap-1.5">
+                                <span id="displayCo2e" class="text-3xl font-extrabold text-brand-400">0.00</span>
+                                <span class="text-xs text-slate-300">公斤 (kg) / 噸 (<span id="displayCo2eTon">0.00</span> t)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-[11px] text-slate-400 border-t border-slate-700/60 pt-3">
+                        計算公式：填充量 (kg) × GWP 數值 = CO₂e (kg)
+                    </div>
+                </div>
+
+                <!-- Quick Stats / Helper Card -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5">
+                    <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">常見冷媒 GWP 參照表</h4>
+                    <div class="space-y-2 text-xs">
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="font-medium text-slate-700">R-410A</span>
+                            <span class="text-slate-500">GWP: 2,088</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="font-medium text-slate-700">R-134a</span>
+                            <span class="text-slate-500">GWP: 1,430</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b border-slate-100">
+                            <span class="font-medium text-slate-700">R-32</span>
+                            <span class="text-slate-500">GWP: 675</span>
+                        </div>
+                        <div class="flex justify-between py-1">
+                            <span class="font-medium text-slate-700">R-717 (氨)</span>
+                            <span class="text-slate-500">GWP: 0</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="mt-8 bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 sm:p-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 pb-2 border-b border-slate-100">
+                <h2 class="text-base font-semibold text-slate-900 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                    </svg>
+                    近期維護與碳排紀錄清單
+                </h2>
+                <div class="text-xs text-slate-500 flex items-center gap-2">
+                    <span>總紀錄筆數：<span id="recordCount" class="font-bold text-slate-800">0</span></span>
+                    <button onclick="clearRecords()" class="text-red-500 hover:text-red-700 font-medium underline">清空紀錄</button>
+                </div>
+            </div>
+
+            <!-- Responsive Table Container -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-slate-600">
+                    <thead class="bg-slate-50 text-slate-700 uppercase text-xs">
+                        <tr>
+                            <th class="py-3 px-4 rounded-l-xl">日期 / 設備</th>
+                            <th class="py-3 px-4">作業型態</th>
+                            <th class="py-3 px-4">冷媒 (GWP)</th>
+                            <th class="py-3 px-4">填充量</th>
+                            <th class="py-3 px-4 rounded-r-xl">碳排 (CO₂e)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logTableBody">
+                        <tr id="emptyRow">
+                            <td colspan="5" class="text-center py-8 text-slate-400 text-sm">
+                                尚無維護紀錄，請填寫上方表單或點擊上方「一鍵載入示範資料」
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-white border-t border-slate-200 mt-12 py-4 text-center text-xs text-slate-400">
+        冷媒溫室氣體自動計算與減量追蹤系統 &copy; 2026
+    </footer>
+
+    <!-- Notification Message Modal / Box -->
+    <div id="toast" class="fixed bottom-6 right-6 transform translate-y-20 opacity-0 transition-all duration-300 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 text-sm">
+        <svg class="w-5 h-5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        5em</svg>
+        <span id="toastMsg">操作成功</span>
+    </div>
+
+    <script>
+        const gwpDatabase = {
+            "R-410A": 2088,
+            "R-134a": 1430,
+            "R-32": 675,
+            "R-407C": 1774,
+            "R-22": 1810,
+            "R-123": 77,
+            "R-717": 0
+        };
+
+        let records = [];
+
+        // Initialize default date to today
+        document.getElementById('maintDate').valueAsDate = new Date();
+
+        function handleRefChange() {
+            const selectElem = document.getElementById('refType');
+            const gwpInput = document.getElementById('gwpVal');
+            const customGwpContainer = document.getElementById('customGwpContainer');
+            const selectedVal = selectElem.value;
+
+            if (selectedVal === "custom") {
+                customGwpContainer.classList.remove('hidden');
+                gwpInput.value = "";
+                document.getElementById('customGwp').value = "";
+            } else {
+                customGwpContainer.classList.add('hidden');
+                if (selectedVal in gwpDatabase) {
+                    gwpInput.value = gwpDatabase[selectedVal];
+                } else {
+                    gwpInput.value = "";
+                }
+            }
+            calculateEmission();
+        }
+
+        function calculateEmission() {
+            const refType = document.getElementById('refType').value;
+            let gwp = 0;
+
+            if (refType === "custom") {
+                gwp = parseFloat(document.getElementById('customGwp').value) || 0;
+            } else {
+                gwp = parseFloat(document.getElementById('gwpVal').value) || 0;
+            }
+
+            const qty = parseFloat(document.getElementById('refQty').value) || 0;
+            const co2eKg = qty * gwp;
+            const co2eTon = co2eKg / 1000;
+
+            document.getElementById('displayGwp').innerText = gwp.toLocaleString();
+            document.getElementById('displayCo2e').innerText = co2eKg.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('displayCo2eTon').innerText = co2eTon.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+        }
+
+        function handleSubmit() {
+            const eqName = document.getElementById('eqName').value;
+            const maintType = document.getElementById('maintType').value;
+            const maintDate = document.getElementById('maintDate').value;
+            const refType = document.getElementById('refType').value;
+            
+            let gwp = 0;
+            if (refType === "custom") {
+                gwp = parseFloat(document.getElementById('customGwp').value) || 0;
+            } else {
+                gwp = parseFloat(document.getElementById('gwpVal').value) || 0;
+            }
+
+            const qty = parseFloat(document.getElementById('refQty').value) || 0;
+            const co2eKg = qty * gwp;
+
+            if (!refType) {
+                showToast("請選擇冷媒種類！");
+                return;
+            }
+
+            const newRecord = {
+                id: Date.now(),
+                eqName,
+                maintType,
+                maintDate,
+                refType: refType === "custom" ? "自訂冷媒" : refType,
+                gwp,
+                qty,
+                co2eKg
+            };
+
+            records.unshift(newRecord);
+            renderTable();
+            showToast("成功新增冷媒維護與碳排紀錄！");
+            
+            // Reset form fields except date
+            document.getElementById('refrigerantForm').reset();
+            document.getElementById('maintDate').valueAsDate = new Date();
+            document.getElementById('gwpVal').value = "";
+            document.getElementById('customGwpContainer').classList.add('hidden');
+            calculateEmission();
+        }
+
+        function loadDemoData() {
+            const demoItems = [
+                {
+                    id: 101,
+                    eqName: "A棟大廳 10RT 冰水主機",
+                    maintType: "冷媒補充 (抓漏後)",
+                    maintDate: "2026-06-12",
+                    refType: "R-410A",
+                    gwp: 2088,
+                    qty: 4.5,
+                    co2eKg: 4.5 * 2088
+                },
+                {
+                    id: 102,
+                    eqName: "研發部實驗室 精密空調",
+                    maintType: "定期保養檢測",
+                    maintDate: "2026-06-10",
+                    refType: "R-134a",
+                    gwp: 1430,
+                    qty: 2.0,
+                    co2eKg: 2.0 * 1430
+                },
+                {
+                    id: 103,
+                    eqName: "B棟機房 變頻空調系統",
+                    maintType: "設備大修重灌",
+                    maintDate: "2026-06-05",
+                    refType: "R-32",
+                    gwp: 675,
+                    qty: 6.2,
+                    co2eKg: 6.2 * 675
+                }
+            ];
+
+            records = [...demoItems];
+            renderTable();
+            
+            // Populate form with the first demo item for convenience
+            document.getElementById('eqName').value = demoItems[0].eqName;
+            document.getElementById('maintType').value = demoItems[0].maintType;
+            document.getElementById('maintDate').value = demoItems[0].maintDate;
+            document.getElementById('refType').value = demoItems[0].refType;
+            document.getElementById('gwpVal').value = demoItems[0].gwp;
+            document.getElementById('refQty').value = demoItems[0].qty;
+            calculateEmission();
+
+            showToast("已成功載入示範維護資料！");
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('logTableBody');
+            document.getElementById('recordCount').innerText = records.length;
+
+            if (records.length === 0) {
+                tbody.innerHTML = `
+                    <tr id="emptyRow">
+                        <td colspan="5" class="text-center py-8 text-slate-400 text-sm">
+                            尚無維護紀錄，請填寫上方表單或點擊上方「一鍵載入示範資料」
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let html = '';
+            records.forEach(item => {
+                html += `
+                    <tr class="border-b border-slate-100 hover:bg-slate-50/70 transition">
+                        <td class="py-3 px-4">
+                            <div class="font-medium text-slate-800">${item.eqName}</div>
+                            <div class="text-xs text-slate-400">${item.maintDate}</div>
+                        </td>
+                        <td class="py-3 px-4 text-xs">
+                            <span class="inline-block bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-medium">${item.maintType}</span>
+                        </td>
+                        <td class="py-3 px-4">
+                            <div class="font-medium text-slate-700">${item.refType}</div>
+                            <div class="text-xs text-slate-400">GWP: ${item.gwp.toLocaleString()}</div>
+                        </td>
+                        <td class="py-3 px-4 font-medium text-slate-800">
+                            ${item.qty.toFixed(2)} kg
+                        </td>
+                        <td class="py-3 px-4 font-bold text-brand-700">
+                            ${item.co2eKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} <span class="text-xs font-normal text-slate-500">kg CO₂e</span>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function clearRecords() {
+            if (confirm("確定要清空所有紀錄嗎？")) {
+                records = [];
+                renderTable();
+                showToast("已清空所有維護紀錄。");
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2x2 重大性矩陣工具 (減碳潛力 vs 排放量)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN for Scatter Plot -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <header class="bg-indigo-700 text-white shadow-md py-4 px-6 mb-6">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold flex items-center gap-2">
+                    <span>📊</span> 2x2 重大性矩陣分析工具
+                </h1>
+                <p class="text-indigo-200 text-sm">評估各部門/項目的總排放量與減碳潛力，優化減碳優先順序</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="loadDemoData()" class="bg-indigo-600 hover:bg-indigo-500 border border-indigo-400 text-white px-4 py-2 rounded-lg font-medium text-sm transition shadow-sm flex items-center gap-1.5">
+                    <span>⚡</span> 一鍵載入示範資料
+                </button>
+                <button onclick="clearAllData()" class="bg-rose-600/80 hover:bg-rose-600 text-white px-3 py-2 rounded-lg font-medium text-sm transition shadow-sm">
+                    清除全部
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 mb-12 flex-grow w-full grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <section class="lg:col-span-5 bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col h-fit">
+            <h2 class="text-lg font-semibold text-slate-800 mb-4 pb-2 border-b border-slate-100 flex items-center justify-between">
+                <span>部門項目設定</span>
+                <span id="itemCountBadge" class="text-xs bg-indigo-100 text-indigo-700 font-semibold px-2 py-0.5 rounded-full">0 項目</span>
+            </h2>
+
+            <form id="itemForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
+                <input type="hidden" id="editIndex" value="-1">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">部門 / 項目名稱</label>
+                    <input type="text" id="itemName" required placeholder="例如：總部大樓空調系統更新" 
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1" title="Y 軸指標">總排放量 (tCO2e)</label>
+                        <input type="number" id="itemEmission" required min="0" step="0.1" placeholder="例如：1200" 
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1" title="X 軸指標">減碳潛力 (1-10分)</label>
+                        <input type="number" id="itemPotential" required min="1" max="10" step="0.1" placeholder="例如：8.5" 
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">備註說明 (選填)</label>
+                    <input type="text" id="itemDesc" placeholder="例如：預計導入變頻冰水機" 
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" id="submitBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg text-sm transition shadow-sm">
+                        新增項目
+                    </button>
+                    <button type="button" id="cancelEditBtn" onclick="resetForm()" class="hidden bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium py-2 px-4 rounded-lg text-sm transition">
+                        取消
+                    </button>
+                </div>
+            </form>
+
+            <div class="mt-6 pt-4 border-t border-slate-100 flex-grow flex flex-col">
+                <h3 class="text-sm font-semibold text-slate-700 mb-3">已登錄項目列表</h3>
+                <div class="overflow-y-auto max-h-64 border border-slate-200 rounded-lg">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="bg-slate-100 sticky top-0 text-slate-600 font-semibold border-b border-slate-200">
+                            <tr>
+                                <th class="p-2.5">名稱</th>
+                                <th class="p-2.5 text-right">排放量</th>
+                                <th class="p-2.5 text-right">減碳潛力</th>
+                                <th class="p-2.5 text-center">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemsTableBody" class="divide-y divide-slate-100">
+                            <!-- JS will inject rows here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
+            <div>
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+                    <div>
+                        <h2 class="text-lg font-semibold text-slate-800">重大性分析矩陣</h2>
+                        <p class="text-xs text-slate-500">X軸: 減碳潛力 (影響力) ｜ Y軸: 總排放量</p>
+                    </div>
+                    <!-- Threshold Control Settings -->
+                    <div class="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200 text-xs">
+                        <span class="text-slate-600 font-medium">象限分割線:</span>
+                        <div class="flex items-center gap-1">
+                            <span>排放閾值:</span>
+                            <input type="number" id="thresholdY" value="1000" onchange="updateMatrix()" class="w-16 border rounded px-1 py-0.5 text-center">
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <span>潛力閾值:</span>
+                            <input type="number" id="thresholdX" value="5" min="1" max="10" step="0.5" onchange="updateMatrix()" class="w-12 border rounded px-1 py-0.5 text-center">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="relative w-full aspect-[4/3] bg-slate-50 rounded-xl border border-slate-200 p-2">
+                    <canvas id="matrixCanvas"></canvas>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 pt-4 border-t border-slate-100 text-xs">
+                <div class="bg-rose-50 border border-rose-200 p-2 rounded-lg">
+                    <span class="font-bold text-rose-700 block mb-0.5">🚀 策略焦點 (優先執行)</span>
+                    <span class="text-slate-600">高潛力 ＆ 高排放</span>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 p-2 rounded-lg">
+                    <span class="font-bold text-amber-700 block mb-0.5">⚡ 快速成效 (次要優先)</span>
+                    <span class="text-slate-600">高潛力 ＆ 低排放</span>
+                </div>
+                <div class="bg-blue-50 border border-blue-200 p-2 rounded-lg">
+                    <span class="font-bold text-blue-700 block mb-0.5">🔍 長期觀察 (維持現狀)</span>
+                    <span class="text-slate-600">低潛力 ＆ 高排放</span>
+                </div>
+                <div class="bg-slate-100 border border-slate-200 p-2 rounded-lg">
+                    <span class="font-bold text-slate-600 block mb-0.5">☕ 低優先順序</span>
+                    <span class="text-slate-500">低潛力 ＆ 低排放</span>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // State data container
+        let items = [];
+        let matrixChart = null;
+
+        // Custom plugin to draw quadrant background shading and threshold lines
+        const quadrantPlugin = {
+            id: 'quadrantPlugin',
+            beforeDraw: (chart) => {
+                const { ctx, chartArea: { left, right, top, bottom }, scales: { x, y } } = chart;
+                
+                const tX = parseFloat(document.getElementById('thresholdX').value) || 5;
+                const tY = parseFloat(document.getElementById('thresholdY').value) || 1000;
+
+                const xPixel = x.getPixelForValue(tX);
+                const yPixel = y.getPixelForValue(tY);
+
+                ctx.save();
+
+                // Quadrant Fills with soft colors
+                // Top-Right: High Potential, High Emission (Strategic Focus)
+                ctx.fillStyle = 'rgba(244, 63, 94, 0.04)';
+                ctx.fillRect(xPixel, top, right - xPixel, yPixel - top);
+
+                // Top-Left: Low Potential, High Emission (Monitor/Long-term)
+                ctx.fillStyle = 'rgba(59, 130, 246, 0.04)';
+                ctx.fillRect(left, top, xPixel - left, yPixel - top);
+
+                // Bottom-Right: High Potential, Low Emission (Quick Wins)
+                ctx.fillStyle = 'rgba(245, 158, 11, 0.04)';
+                ctx.fillRect(xPixel, yPixel, right - xPixel, bottom - yPixel);
+
+                // Bottom-Left: Low Potential, Low Emission (Low Priority)
+                ctx.fillStyle = 'rgba(148, 163, 184, 0.04)';
+                ctx.fillRect(left, yPixel, xPixel - left, bottom - yPixel);
+
+                // Draw Threshold Lines
+                ctx.strokeStyle = 'rgba(100, 116, 139, 0.4)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([4, 4]);
+
+                // Vertical line (X threshold)
+                if (xPixel >= left && xPixel <= right) {
+                    ctx.beginPath();
+                    ctx.moveTo(xPixel, top);
+                    ctx.lineTo(xPixel, bottom);
+                    ctx.stroke();
+                }
+
+                // Horizontal line (Y threshold)
+                if (yPixel >= top && yPixel <= bottom) {
+                    ctx.beginPath();
+                    ctx.moveTo(left, yPixel);
+                    ctx.lineTo(right, yPixel);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+        };
+
+        // Initialize Chart on Window Load
+        window.onload = function() {
+            initChart();
+            loadDemoData(); // Load demo data initially to give immediate value
+        };
+
+        function initChart() {
+            const ctx = document.getElementById('matrixCanvas').getContext('2d');
+            matrixChart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: '減碳項目',
+                        data: [],
+                        backgroundColor: 'rgba(79, 70, 229, 0.85)',
+                        borderColor: 'rgb(67, 56, 202)',
+                        borderWidth: 2,
+                        pointRadius: 8,
+                        pointHoverRadius: 11
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const item = context.raw;
+                                    return [
+                                        ` 項目: ${item.name}`,
+                                        ` 總排放量: ${item.y} tCO2e`,
+                                        ` 減碳潛力: ${item.x} 分`,
+                                        item.desc ? ` 備註: ${item.desc}` : ''
+                                    ].filter(Boolean);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: '減碳潛力 (影響力分數 1-10)', font: { weight: 'bold', size: 12 } },
+                            min: 0,
+                            max: 10.5,
+                            grid: { color: 'rgba(226, 232, 240, 0.6)' }
+                        },
+                        y: {
+                            title: { display: true, text: '總排放量 (tCO2e)', font: { weight: 'bold', size: 12 } },
+                            min: 0,
+                            grid: { color: 'rgba(226, 232, 240, 0.6)' }
+                        }
+                    }
+                },
+                plugins: [quadrantPlugin]
+            });
+        }
+
+        // Handle Form Submit (Add or Update)
+        function handleFormSubmit(event) {
+            event.preventDefault();
+            const editIndex = parseInt(document.getElementById('editIndex').value);
+            const name = document.getElementById('itemName').value.trim();
+            const emission = parseFloat(document.getElementById('itemEmission').value);
+            const potential = parseFloat(document.getElementById('itemPotential').value);
+            const desc = document.getElementById('itemDesc').value.trim();
+
+            if (!name || isNaN(emission) || isNaN(potential)) return;
+
+            const newItem = { name, x: potential, y: emission, desc };
+
+            if (editIndex === -1) {
+                items.push(newItem);
+            } else {
+                items[editIndex] = newItem;
+                resetForm();
+            }
+
+            document.getElementById('itemForm').reset();
+            updateMatrix();
+            renderTable();
+        }
+
+        // Render Items Table
+        function renderTable() {
+            const tbody = document.getElementById('itemsTableBody');
+            const badge = document.getElementById('itemCountBadge');
+            badge.innerText = `${items.length} 項目`;
+
+            if (items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">尚無項目，請手動新增或載入示範資料</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = items.map((item, index) => `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="p-2.5 font-medium text-slate-800">
+                        ${item.name}
+                        ${item.desc ? `<div class="text-[10px] text-slate-400 truncate max-w-[120px]">${item.desc}</div>` : ''}
+                    </td>
+                    <td class="p-2.5 text-right font-mono text-slate-600">${item.y.toLocaleString()}</td>
+                    <td class="p-2.5 text-right font-mono text-slate-600">${item.x}</td>
+                    <td class="p-2.5 text-center">
+                        <button onclick="editItem(${index})" class="text-indigo-600 hover:text-indigo-800 mr-2 font-medium">編輯</button>
+                        <button onclick="deleteItem(${index})" class="text-rose-500 hover:text-rose-700 font-medium">刪除</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Edit Item
+        function editItem(index) {
+            const item = items[index];
+            document.getElementById('editIndex').value = index;
+            document.getElementById('itemName').value = item.name;
+            document.getElementById('itemEmission').value = item.y;
+            document.getElementById('itemPotential').value = item.x;
+            document.getElementById('itemDesc').value = item.desc || '';
+            
+            document.getElementById('submitBtn').innerText = '儲存修改';
+            document.getElementById('cancelEditBtn').classList.remove('hidden');
+            document.getElementById('itemName').focus();
+        }
+
+        // Reset Form
+        function resetForm() {
+            document.getElementById('editIndex').value = '-1';
+            document.getElementById('itemForm').reset();
+            document.getElementById('submitBtn').innerText = '新增項目';
+            document.getElementById('cancelEditBtn').classList.add('hidden');
+        }
+
+        // Delete Item
+        function deleteItem(index) {
+            items.splice(index, 1);
+            resetForm();
+            updateMatrix();
+            renderTable();
+        }
+
+        // Clear All Data
+        function clearAllData() {
+            if (confirm('確定要清空所有項目嗎？')) {
+                items = [];
+                resetForm();
+                updateMatrix();
+                renderTable();
+            }
+        }
+
+        // Update Matrix Chart Data & Dynamic Axis Scaling
+        function updateMatrix() {
+            if (!matrixChart) return;
+
+            matrixChart.data.datasets[0].data = items.map(item => ({
+                x: item.x,
+                y: item.y,
+                name: item.name,
+                desc: item.desc
+            }));
+
+            // Dynamically adjust Y max for best padding visual
+            if (items.length > 0) {
+                const maxY = Math.max(...items.map(i => i.y));
+                matrixChart.options.scales.y.max = Math.max(maxY * 1.2, 2000);
+            }
+
+            matrixChart.update();
+        }
+
+        // ONE-CLICK DEMO DATA FUNCTION
+        function loadDemoData() {
+            items = [
+                { name: '總部大樓空調系統節能改造', x: 8.5, y: 1450, desc: '導入AI智能變頻控制與冰水主機替換' },
+                { name: '廠房屋頂太陽能光電建置', x: 9.0, y: 2200, desc: '設置 2MW 太陽能光伏發電系統' },
+                { name: '公務車全面電動化 (EV)', x: 6.0, y: 450, desc: '逐年汰換汽柴油車輛為純電動車' },
+                { name: 'LED 照明全面升級', x: 4.5, y: 280, desc: '全區更換高效能LED燈具與感應器' },
+                { name: '製程餘熱回收系統優化', x: 8.0, y: 3100, desc: '回收高溫廢氣轉換為廠區蒸汽' },
+                { name: '供應鏈低碳包材推動', x: 5.5, y: 900, desc: '導入可回收生物降解包材' },
+                { name: '員工通勤低碳獎勵計畫', x: 3.0, y: 350, desc: '鼓勵搭乘大眾運輸與共乘' },
+                { name: '資料中心伺服器虛擬化', x: 7.5, y: 1100, desc: '提升伺服器運算效率降低耗電' }
+            ];
+
+            // Auto-adjust threshold suggestions based on demo data spread
+            document.getElementById('thresholdY').value = 1000;
+            document.getElementById('thresholdX').value = 6.0;
+
+            resetForm();
+            updateMatrix();
+            renderTable();
+        }
+    </script>
+</body>
+</html>

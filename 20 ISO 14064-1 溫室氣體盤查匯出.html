@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISO 14064-1 氣體數值整合匯出系統</title>
+    <!-- Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .table-custom th, .table-custom td {
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <header class="bg-indigo-900 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-indigo-700 p-2.5 rounded-xl shadow-inner">
+                    <i class="fa-solid fa-industry text-xl text-indigo-200"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">ISO 14064-1 溫室氣體盤查匯出</h1>
+                    <p class="text-xs text-indigo-300">依據國際標準附錄規格之直接與間接排放彙整系統</p>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <button onclick="loadSampleData()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2 rounded-lg shadow transition flex items-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> 一鍵載入示範資料
+                </button>
+                <button onclick="clearAllData()" class="bg-rose-600/80 hover:bg-rose-700 text-white text-sm font-medium px-3 py-2 rounded-lg transition flex items-center gap-1">
+                    <i class="fa-solid fa-trash-can"></i> 清空
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-8 space-y-8">
+        
+        <!-- Control Actions Bar -->
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <span class="text-sm font-semibold text-slate-600">操作控制：</span>
+                <button onclick="addRow()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-sm font-medium px-3.5 py-2 rounded-xl transition flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i> 新增排放源資料列
+                </button>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <button onclick="copyToExcel()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl shadow transition flex items-center gap-2">
+                    <i class="fa-solid fa-copy"></i> 一鍵複製至 Excel
+                </button>
+                <button onclick="downloadHtmlReport()" class="bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold px-4 py-2 rounded-xl shadow transition flex items-center gap-2">
+                    <i class="fa-solid fa-file-arrow-down"></i> 下載完整 HTML 報表
+                </button>
+            </div>
+        </div>
+
+        <!-- Notification Banner -->
+        <div id="alertBox" class="hidden bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl text-sm flex items-center justify-between transition-all">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-circle-check text-emerald-600"></i>
+                <span id="alertText">操作成功！</span>
+            </div>
+            <button onclick="hideAlert()" class="text-emerald-500 hover:text-emerald-700 font-bold">&times;</button>
+        </div>
+
+        <!-- ISO 14064-1 Main Inventory Table Container -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                <div>
+                    <h2 class="font-bold text-slate-800 text-base">溫室氣體排放量彙整表 (ISO 14064-1 附錄格式)</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">單位數值自動換算公噸二氧化碳當量 ($tCO_2e$)，涵蓋類別一至類別六</p>
+                </div>
+                <div class="text-right text-xs text-slate-500 font-medium hidden sm:block">
+                    總盤查排放量：<span id="totalSummaryBadge" class="text-indigo-600 font-bold text-sm">0.00</span> $tCO_2e$
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table id="ghgTable" class="w-full text-left border-collapse text-xs table-custom">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-700 uppercase tracking-wider font-semibold border-b border-slate-200">
+                            <th class="p-3">類別 (Category)</th>
+                            <th class="p-3">排放源說明 / 活動描述</th>
+                            <th class="p-3">$CO_2$ (公噸)</th>
+                            <th class="p-3">$CH_4$ (公噸)</th>
+                            <th class="p-3">$N_2O$ (公噸)</th>
+                            <th class="p-3">HFCs / PFCs / $SF_6$ / $NF_3$</th>
+                            <th class="p-3">GWP 基準</th>
+                            <th class="p-3 bg-indigo-50 text-indigo-900">總排放當量 ($tCO_2e$)</th>
+                            <th class="p-3 text-center">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-100 text-slate-700">
+                        <!-- Dynamic rows injected here -->
+                    </tbody>
+                    <tfoot class="bg-slate-50 font-bold text-slate-800 border-t border-slate-200">
+                        <tr>
+                            <td colspan="7" class="p-3 text-right">合計 (Total $tCO_2e$)：</td>
+                            <td id="grandTotalCell" class="p-3 text-indigo-700 text-sm">0.00</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- Summary Statistics Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500">類別一：直接溫室氣體排放</p>
+                    <h3 id="cat1Total" class="text-xl font-bold text-slate-800 mt-1">0.00</h3>
+                    <span class="text-xs text-indigo-600 font-medium">範疇一固定/移動/製程排放</span>
+                </div>
+                <div class="bg-indigo-50 text-indigo-600 p-3 rounded-xl">
+                    <i class="fa-solid fa-bolt text-lg"></i>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500">類別二：輸入能源之間接排放</p>
+                    <h3 id="cat2Total" class="text-xl font-bold text-slate-800 mt-1">0.00</h3>
+                    <span class="text-xs text-indigo-600 font-medium">購入電力、熱、蒸氣</span>
+                </div>
+                <div class="bg-blue-50 text-blue-600 p-3 rounded-xl">
+                    <i class="fa-solid fa-plug text-lg"></i>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500">其他類別 (三至六)：其他間接排放</p>
+                    <h3 id="cat36Total" class="text-xl font-bold text-slate-800 mt-1">0.00</h3>
+                    <span class="text-xs text-indigo-600 font-medium">運輸、產品、供應鏈等</span>
+                </div>
+                <div class="bg-emerald-50 text-emerald-600 p-3 rounded-xl">
+                    <i class="fa-solid fa-cubes text-lg"></i>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // GWPs based on IPCC AR6 or AR5 standard guidelines
+        const GWP = {
+            'CO2': 1,
+            'CH4': 28,
+            'N2O': 265,
+            'HFCs': 1300, // Typical average blend
+            'PFCs': 7390,
+            'SF6': 23500,
+            'NF3': 16100
+        };
+
+        const categories = [
+            "類別 1: 直接溫室氣體排放",
+            "類別 2: 輸入能源之間接排放",
+            "類別 3: 運輸所產生之間接排放",
+            "類別 4: 組織使用產品之間接排放",
+            "類別 5: 使用組織產品所產生之排放",
+            "類別 6: 其他來源之間接排放"
+        ];
+
+        let tableData = [];
+
+        // Initialize with empty row or sample data on load
+        window.onload = function() {
+            loadSampleData();
+        };
+
+        function showAlert(message) {
+            const alertBox = document.getElementById('alertBox');
+            const alertText = document.getElementById('alertText');
+            alertText.textContent = message;
+            alertBox.classList.remove('hidden');
+            setTimeout(() => {
+                hideAlert();
+            }, 4000);
+        }
+
+        function hideAlert() {
+            document.getElementById('alertBox').classList.add('hidden');
+        }
+
+        function loadSampleData() {
+            tableData = [
+                {
+                    category: "類別 1: 直接溫室氣體排放",
+                    source: "廠區天然氣鍋爐燃燒",
+                    co2: 1250.5,
+                    ch4: 2.1,
+                    n2o: 0.4,
+                    otherGas: 0,
+                    gwpStandard: "IPCC AR6"
+                },
+                {
+                    category: "類別 1: 直接溫室氣體排放",
+                    source: "公務車輛汽柴油燃燒",
+                    co2: 45.2,
+                    ch4: 0.1,
+                    n2o: 0.05,
+                    otherGas: 0,
+                    gwpStandard: "IPCC AR6"
+                },
+                {
+                    category: "類別 1: 直接溫室氣體排放",
+                    source: "冷媒逸散 (R-410A / HFCs)",
+                    co2: 0,
+                    ch4: 0,
+                    n2o: 0,
+                    otherGas: 1.5, // 1.5 tons of HFCs
+                    gwpStandard: "IPCC AR6"
+                },
+                {
+                    category: "類別 2: 輸入能源之間接排放",
+                    source: "辦公與廠房外購電力",
+                    co2: 3200.0,
+                    ch4: 0,
+                    n2o: 0,
+                    otherGas: 0,
+                    gwpStandard: "經濟部公告係數"
+                },
+                {
+                    category: "類別 3: 運輸所產生之間接排放",
+                    source: "原物料長途海運及貨車運輸",
+                    co2: 310.4,
+                    ch4: 0.2,
+                    n2o: 0.1,
+                    otherGas: 0,
+                    gwpStandard: "IPCC AR6"
+                },
+                {
+                    category: "類別 6: 其他來源之間接排放",
+                    source: "員工通勤與商務差旅",
+                    co2: 85.0,
+                    ch4: 0.0,
+                    n2o: 0.0,
+                    otherGas: 0,
+                    gwpStandard: "IPCC AR6"
+                }
+            ];
+            renderTable();
+            showAlert("已成功載入 ISO 14064-1 示範盤查數據！");
+        }
+
+        function clearAllData() {
+            if (confirm("確定要清空所有資料嗎？")) {
+                tableData = [];
+                renderTable();
+                showAlert("已清空所有盤查資料");
+            }
+        }
+
+        function addRow() {
+            tableData.push({
+                category: "類別 1: 直接溫室氣體排放",
+                source: "新排放源描述",
+                co2: 0,
+                ch4: 0,
+                n2o: 0,
+                otherGas: 0,
+                gwpStandard: "IPCC AR6"
+            });
+            renderTable();
+        }
+
+        function deleteRow(index) {
+            tableData.splice(index, 1);
+            renderTable();
+        }
+
+        function updateData(index, field, value) {
+            if (field === 'category' || field === 'source' || field === 'gwpStandard') {
+                tableData[index][field] = value;
+            } else {
+                tableData[index][field] = parseFloat(value) || 0;
+            }
+            recalculateTotals();
+        }
+
+        function calculateRowTotal(row) {
+            const co2_eq = (row.co2 * GWP.CO2) + 
+                           (row.ch4 * GWP.CH4) + 
+                           (row.n2o * GWP.N2O) + 
+                           (row.otherGas * GWP.HFCs); // Using standard HFCs multiplier for generic other gas input
+            return co2_eq;
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            if (tableData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-400">目前尚無盤查資料，請點擊上方「新增排放源資料列」或「一鍵載入示範資料」。</td></tr>`;
+                recalculateTotals();
+                return;
+            }
+
+            tableData.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/80 transition border-b border-slate-100";
+                
+                let catOptions = categories.map(c => `<option value="${c}" ${row.category === c ? 'selected' : ''}>${c}</option>`).join('');
+                let rowTotal = calculateRowTotal(row);
+
+                tr.innerHTML = `
+                    <td class="p-2">
+                        <select onchange="updateData(${index}, 'category', this.value)" class="bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none w-44">
+                            ${catOptions}
+                        </select>
+                    </td>
+                    <td class="p-2">
+                        <input type="text" value="${row.source}" oninput="updateData(${index}, 'source', this.value)" class="bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none w-48">
+                    </td>
+                    <td class="p-2">
+                        <input type="number" step="any" value="${row.co2}" oninput="updateData(${index}, 'co2', this.value)" class="bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none w-24">
+                    </td>
+                    <td class="p-2">
+                        <input type="number" step="any" value="${row.ch4}" oninput="updateData(${index}, 'ch4', this.value)" class="bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none w-24">
+                    </td>
+                    <td class="p-2">
+                        <input type="number" step="any" value="${row.n2o}" oninput="updateData(${index}, 'n2o', this.value)" class="bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none w-24">
+                    </td>
+                    <td class="p-2">
+                        <input type="number" step="any" value="${row.otherGas}" oninput="updateData(${index}, 'otherGas', this.value)" class="bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none w-24" title="HFCs/PFCs/SF6 等公噸數">
+                    </td>
+                    <td class="p-2">
+                        <input type="text" value="${row.gwpStandard}" oninput="updateData(${index}, 'gwpStandard', this.value)" class="bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-xs focus:ring-2 focus:ring-indigo-500 outline-none w-28">
+                    </td>
+                    <td class="p-2 font-bold text-indigo-700 bg-indigo-50/40" id="row-total-${index}">
+                        ${rowTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </td>
+                    <td class="p-2 text-center">
+                        <button onclick="deleteRow(${index})" class="text-rose-500 hover:text-rose-700 p-1 rounded transition" title="刪除此列">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            recalculateTotals();
+        }
+
+        function recalculateTotals() {
+            let grandTotal = 0;
+            let cat1Sum = 0;
+            let cat2Sum = 0;
+            let cat36Sum = 0;
+
+            tableData.forEach((row, index) => {
+                let rt = calculateRowTotal(row);
+                const totalCell = document.getElementById(`row-total-${index}`);
+                if (totalCell) {
+                    totalCell.textContent = rt.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                }
+
+                grandTotal += rt;
+                if (row.category.includes("類別 1")) {
+                    cat1Sum += rt;
+                } else if (row.category.includes("類別 2")) {
+                    cat2Sum += rt;
+                } else {
+                    cat36Sum += rt;
+                }
+            });
+
+            document.getElementById('grandTotalCell').textContent = grandTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('totalSummaryBadge').textContent = grandTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            
+            document.getElementById('cat1Total').textContent = cat1Sum.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " t";
+            document.getElementById('cat2Total').textContent = cat2Sum.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " t";
+            document.getElementById('cat36Total').textContent = cat36Sum.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " t";
+        }
+
+        // Copy Table to Clipboard formatted for Excel pasting
+        function copyToExcel() {
+            let tsvContent = "ISO 14064-1 溫室氣體排放量彙整表\n";
+            tsvContent += "類別\t排放源說明\tCO2 (公噸)\tCH4 (公噸)\tN2O (公噸)\t其他氣體\tGWP基準\t總排放當量 (tCO2e)\n";
+
+            tableData.forEach(row => {
+                let rt = calculateRowTotal(row);
+                tsvContent += `${row.category}\t${row.source}\t${row.co2}\t${row.ch4}\t${row.n2o}\t${row.otherGas}\t${row.gwpStandard}\t${rt.toFixed(2)}\n`;
+            });
+
+            // Use legacy execCommand copy compatible with iframe security restrictions
+            const textarea = document.createElement('textarea');
+            textarea.value = tsvContent;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showAlert("已成功將表格資料複製至剪貼簿！可直接貼至 Excel 中。");
+            } catch (err) {
+                showAlert("複製失敗，請檢查瀏覽器權限。");
+            }
+            document.body.removeChild(textarea);
+        }
+
+        // Download as standalone HTML report
+        function downloadHtmlReport() {
+            let htmlContent = `<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>ISO 14064-1 溫室氣體盤查報告</title>
+    <style>
+        body { font-family: sans-serif; margin: 40px; color: #333; }
+        h1 { color: #1e3a8a; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+        th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; }
+        th { background-color: #f1f5f9; color: #334155; }
+        .footer { margin-top: 30px; font-size: 12px; color: #64748b; text-align: right; }
+    </style>
+</head>
+<body>
+    <h1>ISO 14064-1 溫室氣體盤查彙整報告</h1>
+    <p>列印日期：${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
+    <table>
+        <thead>
+            <tr>
+                <th>類別</th>
+                <th>排放源說明</th>
+                <th>CO2 (公噸)</th>
+                <th>CH4 (公噸)</th>
+                <th>N2O (公噸)</th>
+                <th>其他氣體</th>
+                <th>GWP 基準</th>
+                <th>總排放當量 (tCO2e)</th>
+            </tr>
+        </thead>
+        <tbody>`;
+
+            tableData.forEach(row => {
+                let rt = calculateRowTotal(row);
+                htmlContent += `<tr>
+                    <td>${row.category}</td>
+                    <td>${row.source}</td>
+                    <td>${row.co2}</td>
+                    <td>${row.ch4}</td>
+                    <td>${row.n2o}</td>
+                    <td>${row.otherGas}</td>
+                    <td>${row.gwpStandard}</td>
+                    <td><b>${rt.toFixed(2)}</b></td>
+                </tr>`;
+            });
+
+            htmlContent += `</tbody>
+    </table>
+    <div class="footer">
+        <p>系統自動產生 - ISO 14064-1 附錄表格規格報表</p>
+    </div>
+</body>
+</html>`;
+
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ISO_14064_GHG_Report_${new Date().toISOString().slice(0,10)}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showAlert("已成功下載 HTML 盤查報告！");
+        }
+    </script>
+</body>
+</html>

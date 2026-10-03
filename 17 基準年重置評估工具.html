@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基準年重置評估工具 (Baseline Year Reset Evaluation Tool)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-full flex flex-col justify-between">
+
+    <header class="bg-white border-b border-slate-200 shadow-sm py-4 px-6">
+        <div class="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-emerald-600 text-white p-2.5 rounded-xl shadow-md">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-slate-900 tracking-tight">基準年重置評估工具</h1>
+                    <p class="text-xs text-slate-500">基於溫室氣體盤查議定書 (GHG Protocol) 規範之組織變更與顯著性評估</p>
+                </div>
+            </div>
+            <!-- Demo Data Button -->
+            <button onclick="loadDemoData()" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium text-sm rounded-xl transition-all border border-indigo-200 shadow-sm active:scale-95">
+                <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                </svg>
+                一鍵載入示範資料
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-6xl w-full mx-auto p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left Column: Inputs Form -->
+        <section class="lg:col-span-6 bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+                    <h2 class="text-base font-semibold text-slate-800 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        盤查與組織變更數據輸入
+                    </h2>
+                    <span class="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">必填參數</span>
+                </div>
+
+                <form id="evaluationForm" onsubmit="return false;" class="space-y-4">
+                    <!-- Base Year Emissions -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1" for="baseEmissions">
+                            基準年總排碳量 (tCO₂e)
+                        </label>
+                        <div class="relative rounded-xl shadow-sm">
+                            <input type="number" step="any" id="baseEmissions" placeholder="例如：100000" oninput="calculateResults()"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none transition-all text-slate-900 font-mono">
+                            <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400 text-sm">tCO₂e</div>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">基準年經確信或盤查通過之總溫室氣體排放量</p>
+                    </div>
+
+                    <!-- Organizational Change Type -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1" for="changeType">
+                            組織變更類型
+                        </label>
+                        <select id="changeType" onchange="calculateResults()"
+                            class="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none transition-all text-slate-900">
+                            <option value="merge">併購 / 取得設施 (Mergers & Acquisitions)</option>
+                            <option value="spinOff">出售 / 撤資 / 關閉設施 (Divestments & Closures)</option>
+                            <option value="outsourcing">委外或收回外包 (Outsourcing / Insourcing)</option>
+                        </select>
+                    </div>
+
+                    <!-- Change Emissions Amount -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1" id="changeLabel" for="changeEmissions">
+                            近期組織變更之碳排量 (tCO₂e)
+                        </label>
+                        <div class="relative rounded-xl shadow-sm">
+                            <input type="number" step="any" id="changeEmissions" placeholder="例如：6000" oninput="calculateResults()"
+                                class="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none transition-all text-slate-900 font-mono">
+                            <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400 text-sm">tCO₂e</div>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1" id="changeHint">併入或新增之組織/設施在基準年的年排放量</p>
+                    </div>
+
+                    <!-- Significance Threshold -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-sm font-medium text-slate-700" for="threshold">
+                                顯著性門檻值設定 (%)
+                            </label>
+                            <span id="thresholdValueText" class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">5%</span>
+                        </div>
+                        <input type="range" id="threshold" min="1" max="20" step="0.5" value="5" oninput="updateThresholdDisplay()"
+                            class="w-full accent-emerald-600 cursor-pointer">
+                        <div class="flex justify-between text-xs text-slate-400 mt-1">
+                            <span>1% (嚴格)</span>
+                            <span>5% (GHG Protocol 常用建議)</span>
+                            <span>20% (寬鬆)</span>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-slate-100 flex gap-3">
+                <button onclick="resetForm()" class="w-1/3 px-4 py-2.5 border border-slate-300 hover:bg-slate-100 text-slate-700 font-medium text-sm rounded-xl transition-all">
+                    清除重設
+                </button>
+                <button onclick="calculateResults()" class="w-2/3 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-xl shadow-md transition-all">
+                    立即評估計算
+                </button>
+            </div>
+        </section>
+
+        <!-- Right Column: Dynamic Results & Decision Card -->
+        <section class="lg:col-span-6 flex flex-col gap-6">
+            
+            <!-- Result Main Card -->
+            <div id="resultCard" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between transition-all duration-300">
+                <div>
+                    <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+                        <h2 class="text-base font-semibold text-slate-800 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                            評估計算與決策建議
+                        </h2>
+                        <div id="statusBadge" class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+                            等待輸入資料
+                        </div>
+                    </div>
+
+                    <!-- Metrics Grid -->
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <span class="text-xs text-slate-500 block mb-1">組織變更排碳佔比</span>
+                            <div class="text-2xl font-bold font-mono text-slate-900" id="resPercentage">0.00%</div>
+                        </div>
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <span class="text-xs text-slate-500 block mb-1">門檻值判定狀態</span>
+                            <div class="text-lg font-bold truncate" id="resSignificance">尚未評估</div>
+                        </div>
+                    </div>
+
+                    <!-- Recommendation Message Box -->
+                    <div id="recommendationBox" class="p-4 rounded-xl border bg-slate-50 border-slate-200 text-slate-600 text-sm leading-relaxed">
+                        請在左側輸入「基準年總排碳量」與「組織變更碳排量」，系統將依據所選門檻值自動進行基準年重置（Recalculation）合規評估。
+                    </div>
+                </div>
+
+                <!-- Guidance Accordion / Detail Info -->
+                <div class="mt-6 pt-4 border-t border-slate-100 text-xs text-slate-500 space-y-1.5">
+                    <p class="font-medium text-slate-700">💡 基準年重置原則提示：</p>
+                    <p>• 當組織發生重大變併購、出售等結構性變化，超過顯著性門檻時，應重置基準年。</p>
+                    <p>• 若未達門檻，企業可自行決定是否為維持可比性而調整歷史基準年數據。</p>
+                </div>
+            </div>
+
+            <!-- Export / Summary Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex items-center justify-between">
+                <div>
+                    <h3 class="text-sm font-semibold text-slate-800">盤查稽核備查</h3>
+                    <p class="text-xs text-slate-400">您可以將此計算結果摘要複製或儲存作內部稽核紀錄</p>
+                </div>
+                <button onclick="copySummary()" id="copyBtn" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs rounded-lg transition-all flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+                    </svg>
+                    複製評估摘要
+                </button>
+            </div>
+
+        </section>
+
+    </main>
+
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-400">
+        <p>基準年重置評估工具 &copy; 2026 | 依據 GHG Protocol 企業會計與報告標準建置</p>
+    </footer>
+
+    <script>
+        // Dynamic label adjustment based on change type selection
+        document.getElementById('changeType').addEventListener('change', function() {
+            const val = this.value;
+            const hint = document.getElementById('changeHint');
+            const label = document.getElementById('changeLabel');
+            if (val === 'merge') {
+                label.innerText = '新增/併入之組織碳排量 (tCO₂e)';
+                hint.innerText = '併入或新增之組織/設施在基準年的年排放量';
+            } else if (val === 'spinOff') {
+                label.innerText = '出售/關閉之組織碳排量 (tCO₂e)';
+                hint.innerText = '出售或關閉之組織/設施在基準年的年排放量';
+            } else {
+                label.innerText = '外包變更調整碳排量 (tCO₂e)';
+                hint.innerText = '因委外或收回外包活動所產生的基準年碳排變動量';
+            }
+            calculateResults();
+        });
+
+        function updateThresholdDisplay() {
+            const val = document.getElementById('threshold').value;
+            document.getElementById('thresholdValueText').innerText = val + '%';
+            calculateResults();
+        }
+
+        // Load predefined demo data
+        function loadDemoData() {
+            document.getElementById('baseEmissions').value = 120000;
+            document.getElementById('changeType').value = 'merge';
+            // Trigger change event to update labels correctly
+            document.getElementById('changeType').dispatchEvent(new Event('change'));
+            document.getElementById('changeEmissions').value = 7500; // 7,500 / 120,000 = 6.25% (exceeds 5%)
+            document.getElementById('threshold').value = 5;
+            document.getElementById('thresholdValueText').innerText = '5%';
+            calculateResults();
+        }
+
+        function resetForm() {
+            document.getElementById('evaluationForm').reset();
+            document.getElementById('threshold').value = 5;
+            document.getElementById('thresholdValueText').innerText = '5%';
+            document.getElementById('changeType').dispatchEvent(new Event('change'));
+            
+            // Reset UI states
+            document.getElementById('resPercentage').innerText = '0.00%';
+            document.getElementById('resSignificance').innerText = '尚未評估';
+            document.getElementById('resSignificance').className = 'text-lg font-bold truncate text-slate-700';
+            
+            const badge = document.getElementById('statusBadge');
+            badge.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600';
+            badge.innerText = '等待輸入資料';
+
+            const box = document.getElementById('recommendationBox');
+            box.className = 'p-4 rounded-xl border bg-slate-50 border-slate-200 text-slate-600 text-sm leading-relaxed';
+            box.innerHTML = '請在左側輸入「基準年總排碳量」與「組織變更碳排量」，系統將依據所選門檻值自動進行基準年重置（Recalculation）合規評估。';
+        }
+
+        function calculateResults() {
+            const baseInput = parseFloat(document.getElementById('baseEmissions').value);
+            const changeInput = parseFloat(document.getElementById('changeEmissions').value);
+            const threshold = parseFloat(document.getElementById('threshold').value);
+            const changeType = document.getElementById('changeType').value;
+
+            const resPercentage = document.getElementById('resPercentage');
+            const resSignificance = document.getElementById('resSignificance');
+            const statusBadge = document.getElementById('statusBadge');
+            const resultCard = document.getElementById('resultCard');
+            const recommendationBox = document.getElementById('recommendationBox');
+
+            if (isNaN(baseInput) || isNaN(changeInput) || baseInput <= 0) {
+                resPercentage.innerText = '0.00%';
+                resSignificance.innerText = '資料不完整';
+                resSignificance.className = 'text-lg font-bold truncate text-slate-400';
+                statusBadge.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600';
+                statusBadge.innerText = '等待輸入資料';
+                recommendationBox.className = 'p-4 rounded-xl border bg-slate-50 border-slate-200 text-slate-600 text-sm leading-relaxed';
+                recommendationBox.innerHTML = '請填寫正確且大於 0 的基準年總排碳量與組織變更碳排量。';
+                return;
+            }
+
+            // Calculation: Percentage of change relative to base year
+            // Note: Absolute change percentage is typically evaluated
+            const percentage = (Math.abs(changeInput) / baseInput) * 100;
+            resPercentage.innerText = percentage.toFixed(2) + '%';
+
+            const isSignificant = percentage >= threshold;
+
+            if (isSignificant) {
+                resSignificance.innerText = '超過門檻 (顯著)';
+                resSignificance.className = 'text-lg font-bold truncate text-rose-600';
+                
+                statusBadge.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-700';
+                statusBadge.innerText = '建議重置基準年';
+
+                resultCard.className = 'bg-white rounded-2xl shadow-sm border border-rose-200 p-6 flex flex-col justify-between transition-all duration-300 ring-1 ring-rose-200';
+                
+                let actionText = changeType === 'merge' ? '併入資產' : (changeType === 'spinOff' ? '出售資產' : '外包調整');
+                recommendationBox.className = 'p-4 rounded-xl border bg-rose-50 border-rose-200 text-rose-900 text-sm leading-relaxed';
+                recommendationBox.innerHTML = `<strong>【評估結果：建議重置基準年】</strong><br>因近期組織變更（${actionText}）之碳排變動佔比達 <strong>${percentage.toFixed(2)}%</strong>，已超過您設定之顯著性門檻 <strong>${threshold}%</strong>。<br>根據 GHG Protocol 規範，為確保溫室氣體盤查歷史資料之可比性與一致性，建議重新計算並調整基準年排放總量。`;
+            } else {
+                resSignificance.innerText = '未超門檻 (不顯著)';
+                resSignificance.className = 'text-lg font-bold truncate text-emerald-600';
+                
+                statusBadge.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700';
+                statusBadge.innerText = '無需強制重置';
+
+                resultCard.className = 'bg-white rounded-2xl shadow-sm border border-emerald-200 p-6 flex flex-col justify-between transition-all duration-300 ring-1 ring-emerald-200';
+                
+                recommendationBox.className = 'p-4 rounded-xl border bg-emerald-50 border-emerald-200 text-emerald-900 text-sm leading-relaxed';
+                recommendationBox.innerHTML = `<strong>【評估結果：無需強制重置基準年】</strong><br>近期組織變更之碳排變動佔比為 <strong>${percentage.toFixed(2)}%</strong>，未達到您所設定之顯著性門檻 <strong>${threshold}%</strong>。<br>企業可維持原基準年數據不變（惟後續累積小幅變動達顯著門檻時仍需重新檢視）。`;
+            }
+        }
+
+        function copySummary() {
+            const baseInput = document.getElementById('baseEmissions').value;
+            const changeInput = document.getElementById('changeEmissions').value;
+            const changeTypeElem = document.getElementById('changeType');
+            const changeTypeText = changeTypeElem.options[changeTypeElem.selectedIndex].text;
+            const threshold = document.getElementById('threshold').value;
+            const percentage = document.getElementById('resPercentage').innerText;
+            const significance = document.getElementById('resSignificance').innerText;
+
+            if (!baseInput || !changeInput) {
+                alert('目前沒有完整數據可供複製！');
+                return;
+            }
+
+            const summaryText = `【基準年重置評估報告】\n` +
+                                `- 基準年總排碳量: ${baseInput} tCO₂e\n` +
+                                `- 組織變更類型: ${changeTypeText}\n` +
+                                `- 變更碳排量: ${changeInput} tCO₂e\n` +
+                                `- 設定顯著性門檻: ${threshold}%\n` +
+                                `- 實際變動佔比: ${percentage}\n` +
+                                `- 評估判定: ${significance}\n` +
+                                `時間: ${new Date().toLocaleString()}`;
+
+            // Fallback copy method compatible with sandbox constraints
+            const textarea = document.createElement('textarea');
+            textarea.value = summaryText;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                const btn = document.getElementById('copyBtn');
+                btn.innerText = '已成功複製！';
+                setTimeout(() => {
+                    btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg> 複製評估摘要`;
+                }, 2000);
+            } catch (err) {
+                console.error('Copy failed', err);
+            }
+            document.body.removeChild(textarea);
+        }
+    </script>
+</body>
+</html>

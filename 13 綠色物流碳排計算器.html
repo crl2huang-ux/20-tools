@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>貨運物流碳排計算工具</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts Inter & Noto Sans TC -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-full flex flex-col">
+
+    <header class="bg-emerald-700 text-white shadow-md py-4 px-6 flex flex-wrap justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="bg-emerald-600 p-2 rounded-xl shadow-inner">
+                <svg class="w-7 h-7 text-emerald-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"></path>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-wide">綠色物流碳排計算器</h1>
+                <p class="text-xs text-emerald-200">Freight Logistics Carbon Emission Calculator</p>
+            </div>
+        </div>
+        <div class="mt-2 sm:mt-0 flex items-center space-x-3">
+            <button onclick="loadDemoData()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-4 py-2 rounded-xl shadow transition duration-200 flex items-center space-x-2 border border-emerald-500">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+                <span>一鍵載入示範資料</span>
+            </button>
+            <button onclick="resetForm()" class="bg-emerald-800 hover:bg-emerald-900 text-emerald-100 text-sm font-medium px-3 py-2 rounded-xl transition duration-200">
+                重設
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-y-auto">
+        
+        <!-- Left Panel: Input Controls -->
+        <div class="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between">
+            <div class="space-y-5">
+                <div class="border-b border-slate-100 pb-3">
+                    <h2 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
+                        <span class="w-2.5 h-2.5 bg-emerald-600 rounded-full inline-block"></span>
+                        <span>運輸參數設定</span>
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-0.5">請輸入運輸距離、載重及選擇貨車類型</p>
+                </div>
+
+                <!-- Route & Distance -->
+                <div class="space-y-1.5">
+                    <label for="routeDesc" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">起訖點名稱 (選填)</label>
+                    <input type="text" id="routeDesc" placeholder="例如：台北物流中心 ➔ 高雄發貨倉" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition" oninput="calculate()">
+                </div>
+
+                <div class="space-y-1.5">
+                    <div class="flex justify-between items-center">
+                        <label for="distance" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">運輸距離 (公里 km)</label>
+                        <span id="distanceVal" class="text-xs font-bold text-emerald-600">350 km</span>
+                    </div>
+                    <input type="number" id="distance" min="1" max="5000" value="350" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition" oninput="calculate()">
+                </div>
+
+                <!-- Payload Weight -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between items-center">
+                        <label for="weight" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">載重公噸數 (Metric Tons)</label>
+                        <span id="weightVal" class="text-xs font-bold text-emerald-600">12.5 公噸</span>
+                    </div>
+                    <input type="number" id="weight" step="0.1" min="0.1" max="50" value="12.5" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition" oninput="calculate()">
+                    <div class="flex justify-between text-[11px] text-slate-400 px-1">
+                        <span>輕量 (小貨車)</span>
+                        <span>中量 (中型卡車)</span>
+                        <span>重量 (聯結/大貨車)</span>
+                    </div>
+                </div>
+
+                <!-- Truck Type Selection -->
+                <div class="space-y-2">
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">貨車類型與碳排係數</label>
+                    <div class="grid grid-cols-1 gap-2.5" id="truckTypeContainer">
+                        <!-- Dynamically populated or static radio options -->
+                        <label class="flex items-center p-3 border border-slate-200 rounded-xl cursor-pointer hover:border-emerald-500 transition bg-slate-50 has-[:checked]:bg-emerald-50/60 has-[:checked]:border-emerald-600">
+                            <input type="radio" name="truckType" value="small" class="text-emerald-600 focus:ring-emerald-500 h-4 w-4" onchange="calculate()">
+                            <div class="ml-3 text-sm">
+                                <p class="font-bold text-slate-800">小型貨車 (&lt; 3.5噸)</p>
+                                <p class="text-xs text-slate-500">市區配送 / 輕量物流 (~0.35 kgCO₂e/噸公里)</p>
+                            </div>
+                        </label>
+
+                        <label class="flex items-center p-3 border border-slate-200 rounded-xl cursor-pointer hover:border-emerald-500 transition bg-slate-50 has-[:checked]:bg-emerald-50/60 has-[:checked]:border-emerald-600">
+                            <input type="radio" name="truckType" value="medium" class="text-emerald-600 focus:ring-emerald-500 h-4 w-4" onchange="calculate()">
+                            <div class="ml-3 text-sm">
+                                <p class="font-bold text-slate-800">中型貨車 (3.5 - 11噸)</p>
+                                <p class="text-xs text-slate-500">區域運輸 / 標準卡車 (~0.22 kgCO₂e/噸公里)</p>
+                            </div>
+                        </label>
+
+                        <label class="flex items-center p-3 border border-slate-200 rounded-xl cursor-pointer hover:border-emerald-500 transition bg-slate-50 has-[:checked]:bg-emerald-50/60 has-[:checked]:border-emerald-600">
+                            <input type="radio" name="truckType" value="heavy" checked class="text-emerald-600 focus:ring-emerald-500 h-4 w-4" onchange="calculate()">
+                            <div class="ml-3 text-sm">
+                                <p class="font-bold text-slate-800">大型聯結車 (&gt; 11噸)</p>
+                                <p class="text-xs text-slate-500">長途幹線 / 重載貨運 (~0.13 kgCO₂e/噸公里)</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-slate-100 text-xs text-slate-400 text-center">
+                係數參考交通部運輸研究所與環境部碳排網
+            </div>
+        </div>
+
+        <!-- Right Panel: Results & Analytics -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- Summary Result Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Ton-Kilometer Card -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden flex flex-col justify-between">
+                    <div class="absolute right-3 top-3 text-emerald-100">
+                        <svg class="w-16 h-16" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">運輸績效表現</span>
+                        <h3 class="text-sm font-medium text-slate-600 mt-1">噸公里 (Ton-Kilometers)</h3>
+                    </div>
+                    <div class="mt-4">
+                        <div class="flex items-baseline space-x-2">
+                            <span id="outTonKm" class="text-3xl font-black text-slate-900 tracking-tight">4,375.0</span>
+                            <span class="text-sm font-bold text-slate-500">T·km</span>
+                        </div>
+                        <p id="outTonKmDesc" class="text-xs text-slate-500 mt-1">計算公式：距離 × 載重公噸數</p>
+                    </div>
+                </div>
+
+                <!-- Total Carbon Emission Card -->
+                <div class="bg-emerald-900 text-white p-5 rounded-2xl shadow-md relative overflow-hidden flex flex-col justify-between">
+                    <div class="absolute right-3 top-3 text-emerald-800 opacity-50">
+                        <svg class="w-16 h-16" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <span class="text-xs font-semibold text-emerald-300 uppercase tracking-wider">溫室氣體排放評估</span>
+                        <h3 class="text-sm font-medium text-emerald-100 mt-1">總碳排放量 (Total Emissions)</h3>
+                    </div>
+                    <div class="mt-4">
+                        <div class="flex items-baseline space-x-2">
+                            <span id="outCarbonTotal" class="text-3xl font-black text-emerald-200 tracking-tight">568.75</span>
+                            <span class="text-sm font-bold text-emerald-300">kgCO₂e</span>
+                        </div>
+                        <p id="outCarbonTon" class="text-xs text-emerald-300 mt-1">約等於 0.57 公噸 CO₂e</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Stats Bar / Equivalency -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+                <h4 class="text-sm font-bold text-slate-800 mb-3 flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span>減碳與環保對比換算</span>
+                </h4>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+                        <p class="text-xs text-slate-500">需種植樹木吸收 (年)</p>
+                        <p id="equivTrees" class="text-lg font-bold text-emerald-700 mt-1">47 棵</p>
+                    </div>
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+                        <p class="text-xs text-slate-500">相當於汽油車行駛距離</p>
+                        <p id="equivCarKm" class="text-lg font-bold text-emerald-700 mt-1">4,289 公里</p>
+                    </div>
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+                        <p class="text-xs text-slate-500">所選車型排碳係數</p>
+                        <p id="equivFactor" class="text-lg font-bold text-emerald-700 mt-1">0.13 kg/T·km</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart Section -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <h4 class="text-sm font-bold text-slate-800">各車型碳排放量對比分析</h4>
+                    <span class="text-xs text-slate-400">相同條件下不同車型之總排碳量 (kgCO₂e)</span>
+                </div>
+                <div class="relative h-64 w-full">
+                    <canvas id="emissionChart"></canvas>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // Truck coefficient definitions (kg CO2e per Ton-Kilometer)
+        const truckCoefficients = {
+            small: { name: '小型貨車 (<3.5噸)', factor: 0.35 },
+            medium: { name: '中型貨車 (3.5-11噸)', factor: 0.22 },
+            heavy: { name: '大型聯結車 (>11噸)', factor: 0.13 }
+        };
+
+        let emissionChart = null;
+
+        // Initialize Chart on Load
+        window.onload = function () {
+            initChart();
+            calculate();
+        };
+
+        function initChart() {
+            const ctx = document.getElementById('emissionChart').getContext('2d');
+            emissionChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['小型貨車 (<3.5噸)', '中型貨車 (3.5-11噸)', '大型聯結車 (>11噸)'],
+                    datasets: [{
+                        label: '總碳排放量 (kgCO₂e)',
+                        data: [0, 0, 0],
+                        backgroundColor: ['#94a3b8', '#64748b', '#059669'],
+                        borderRadius: 8,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` 碳排放量: ${context.parsed.y.toLocaleString()} kgCO₂e`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#f1f5f9' },
+                            ticks: { font: { family: 'Inter' } }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { family: 'Inter' } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Main Calculation Function
+        function calculate() {
+            const distanceInput = parseFloat(document.getElementById('distance').value) || 0;
+            const weightInput = parseFloat(document.getElementById('weight').value) || 0;
+            
+            // Update range labels display
+            document.getElementById('distanceVal').innerText = distanceInput + ' km';
+            document.getElementById('weightVal').innerText = weightInput.toFixed(1) + ' 公噸';
+
+            // Selected truck type
+            const selectedRadio = document.querySelector('input[name="truckType"]:checked');
+            const truckType = selectedRadio ? selectedRadio.value : 'heavy';
+            const currentFactor = truckCoefficients[truckType].factor;
+
+            // Calculations
+            const tonKm = distanceInput * weightInput;
+            const totalCarbon = tonKm * currentFactor;
+            const carbonTon = totalCarbon / 1000;
+
+            // Display Results
+            document.getElementById('outTonKm').innerText = tonKm.toLocaleString('zh-TW', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+            document.getElementById('outCarbonTotal').innerText = totalCarbon.toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('outCarbonTon').innerText = `約等於 ${carbonTon.toFixed(3)} 公噸 CO₂e`;
+            document.getElementById('equivFactor').innerText = `${currentFactor} kg/T·km`;
+
+            // Equivalency metrics
+            // Trees: 1 mature tree absorbs ~12kg CO2 per year
+            const trees = Math.ceil(totalCarbon / 12);
+            document.getElementById('equivTrees').innerText = `${trees} 棵`;
+
+            // Car km: average gasoline car emits ~0.132 kg CO2 per km
+            const carKm = Math.round(totalCarbon / 0.132);
+            document.getElementById('equivCarKm').innerText = `${carKm.toLocaleString()} 公里`;
+
+            // Update Chart Data for all 3 truck types
+            const smallCarbon = tonKm * truckCoefficients.small.factor;
+            const mediumCarbon = tonKm * truckCoefficients.medium.factor;
+            const heavyCarbon = tonKm * truckCoefficients.heavy.factor;
+
+            if (emissionChart) {
+                emissionChart.data.datasets[0].data = [smallCarbon, mediumCarbon, heavyCarbon];
+                // Highlight selected truck color
+                emissionChart.data.datasets[0].backgroundColor = [
+                    truckType === 'small' ? '#059669' : '#cbd5e1',
+                    truckType === 'medium' ? '#059669' : '#94a3b8',
+                    truckType === 'heavy' ? '#059669' : '#64748b'
+                ];
+                emissionChart.update();
+            }
+        }
+
+        function loadDemoData() {
+            // Preset realistic demo shipment data
+            document.getElementById('routeDesc').value = '桃園物流園區 ➔ 台中科學園區';
+            document.getElementById('distance').value = 160;
+            document.getElementById('weight').value = 18.5;
+            
+            // Select medium or heavy truck for demo
+            const radios = document.querySelectorAll('input[name="truckType"]');
+            radios.forEach(r => {
+                if (r.value === 'heavy') {
+                    r.checked = true;
+                }
+            });
+
+            calculate();
+        }
+
+        function resetForm() {
+            document.getElementById('routeDesc').value = '';
+            document.getElementById('distance').value = 100;
+            document.getElementById('weight').value = 10.0;
+            document.querySelector('input[name="truckType"][value="medium"]').checked = true;
+            calculate();
+        }
+    </script>
+</body>
+</html>
