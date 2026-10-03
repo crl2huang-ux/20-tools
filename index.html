@@ -593,29 +593,58 @@
             }
         };
 
-        // 啟動工具 Modal (直接以彈跳視窗呈現)
+        // 啟動工具：連結 GitHub Pages 同一目錄下的 20 個獨立 HTML 檔案
+        const toolFiles = {
+            tool_01: '01台電電費單 AI 智慧辨識.html',
+            tool_02: '02 加油發票 AI 智慧辨識與車輛油耗管理工具.html',
+            tool_03: '03 冷媒維護登記表.html',
+            tool_04: '04 通勤碳排試算表單.html',
+            tool_05: '05 員工出差碳排與補助計算.html',
+            tool_06: '06 碳排放係數智慧查詢系統.html',
+            tool_07: '07 固定與移動燃燒碳排放計算器.html',
+            tool_08: '08 電力排碳分析工具.html',
+            tool_09: '09 多辦公室用電與碳排分攤系統.html',
+            tool_10: '10 多功能能源單位換算器.html',
+            tool_11: '11 供應商碳數據追蹤看板.html',
+            tool_12: '12 廢棄物下游處理碳排計算器.html',
+            tool_13: '13 綠色物流碳排計算器.html',
+            tool_14: '14 採購金額碳排估算工具.html',
+            tool_15: '15 智慧數據異常檢測面板.html',
+            tool_16: '16 ISO 14064-1 稽核文件檢核表.html',
+            tool_17: '17 基準年重置評估工具.html',
+            tool_18: '18 碳流向桑基圖生成工具.html',
+            tool_19: '19 2x2 重大性矩陣工具.html',
+            tool_20: '20 ISO 14064-1 溫室氣體盤查匯出.html'
+        };
+
+        let currentActiveFile = '';
+
         window.openTool = function(id) {
             const tool = tools.find(t => t.id === id);
             if (!tool) return;
+            const fileName = toolFiles[id];
+            if (!fileName) {
+                showToast('找不到此工具對應的 HTML 檔案');
+                return;
+            }
 
             modalToolTitle.textContent = tool.name;
             modalToolSub.textContent = tool.desc;
             modalToolIcon.innerHTML = `<i class="${tool.icon || 'fa-solid fa-cubes'}"></i>`;
-            currentActiveHtml = tool.html;
-
-            toolIframe.srcdoc = tool.html;
+            currentActiveFile = fileName;
+            toolIframe.removeAttribute('srcdoc');
+            toolIframe.src = encodeURI(fileName);
             toolModal.classList.remove('hidden');
         };
 
         window.closeToolModal = function() {
             toolModal.classList.add('hidden');
-            toolIframe.srcdoc = '';
+            toolIframe.src = 'about:blank';
+            currentActiveFile = '';
         };
 
         openNewTabBtn.addEventListener('click', () => {
-            const blob = new Blob([currentActiveHtml], { type: 'text/html;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            window.open(url, '_blank');
+            if (currentActiveFile) window.open(encodeURI(currentActiveFile), '_blank');
         });
 
         // 載入 HTML 檔案按鈕
