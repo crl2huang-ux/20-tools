@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>20 個效率工具全景：從收資料到產報告</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto SansTC', sans-serif;
+            background-color: #f7f9f8;
+            color: #1e293b;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col antialiased selection:bg-emerald-500 selection:text-white">
+
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-md shadow-emerald-600/20">
+                    <i class="fa-solid fa-leaf text-lg"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">20 個效率工具全景：從收資料到產報告</h1>
+                        <span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                            <i class="fa-solid fa-check text-[10px]"></i> 管理員權限已就緒
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-500">企業碳盤查四大工作流；支援管理人權限控制、彈跳窗影片播放與工具執行。</p>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2.5">
+                <!-- 管理員狀態按鈕 -->
+                <button id="adminLoginBtn" onclick="toggleAdminLogin()" class="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs sm:text-sm font-semibold px-3.5 py-2 rounded-xl transition flex items-center gap-2 shadow-xs">
+                    <i id="adminStatusIcon" class="fa-solid fa-lock text-xs text-amber-500"></i> <span id="adminBtnText">管理員登入</span>
+                </button>
+                <button class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs sm:text-sm font-semibold px-3.5 py-2 rounded-xl transition flex items-center gap-2 shadow-xs">
+                    <i class="fa-solid fa-book-open text-xs text-slate-500"></i> 工作流指引
+                </button>
+                <button id="addHtmlFileBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-xl transition shadow-md shadow-emerald-600/20 flex items-center gap-2 active:scale-95">
+                    <i class="fa-solid fa-file-arrow-up text-xs"></i> 載入 HTML 檔案新增工具
+                </button>
+                <input type="file" id="htmlFileInput" accept=".html,.htm" class="hidden">
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6 overflow-y-auto">
+        
+        <!-- Toast 訊息框 -->
+        <div id="toast" class="hidden fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-md text-sm transition-all duration-300 flex items-center gap-2.5 border border-slate-700">
+            <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+            <span id="toastMsg">提示訊息</span>
+        </div>
+
+        <!-- 頂部 4 大指標卡片 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs flex items-center gap-3.5">
+                <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-cubes"></i>
+                </div>
+                <div>
+                    <div class="text-slate-400 text-[11px] font-semibold">四大工作流架構</div>
+                    <div class="text-lg font-bold text-slate-800 mt-0.5">4 大階段 <span class="text-xs text-slate-400 font-normal">· 20 工具</span></div>
+                </div>
+            </div>
+            <div class="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs flex items-center gap-3.5">
+                <div class="w-11 h-11 rounded-xl bg-teal-50 text-teal-600 border border-teal-100 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-microchip"></i>
+                </div>
+                <div>
+                    <div class="text-slate-400 text-[11px] font-semibold">即刻可用工具模組</div>
+                    <div class="text-lg font-bold text-slate-800 mt-0.5"><span id="statToolCount">20</span> 款完整工具庫</div>
+                </div>
+            </div>
+            <div class="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs flex items-center gap-3.5">
+                <div class="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-calculator"></i>
+                </div>
+                <div>
+                    <div class="text-slate-400 text-[11px] font-semibold">彈跳窗視窗引擎</div>
+                    <div class="text-lg font-bold text-slate-800 mt-0.5">返回上一頁支援</div>
+                </div>
+            </div>
+            <div class="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs flex items-center gap-3.5">
+                <div class="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <div class="text-slate-400 text-[11px] font-semibold">管理人驗證狀態</div>
+                    <div id="adminBadgeText" class="text-sm font-bold text-rose-600 mt-0.5">未登入 (唯讀模式)</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xs flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                <span class="text-xs font-bold text-slate-500 flex items-center gap-1.5 mr-1">
+                    <i class="fa-solid fa-filter text-slate-400"></i> 篩選工作流：
+                </span>
+                <button onclick="filterTools('all')" id="filter_all" class="filter-btn bg-slate-900 text-white text-xs font-semibold px-3 py-1.5 rounded-xl transition">全部 (<span id="countAll">20</span>)</button>
+                <button onclick="filterTools('w1')" id="filter_w1" class="filter-btn bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium px-3 py-1.5 rounded-xl transition">一、數據收集</button>
+                <button onclick="filterTools('w2')" id="filter_w2" class="filter-btn bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium px-3 py-1.5 rounded-xl transition">二、係數匹配</button>
+                <button onclick="filterTools('w3')" id="filter_w3" class="filter-btn bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium px-3 py-1.5 rounded-xl transition">三、範疇三供應鏈</button>
+                <button onclick="filterTools('w4')" id="filter_w4" class="filter-btn bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium px-3 py-1.5 rounded-xl transition">四、品質稽核</button>
+            </div>
+            <div class="w-full md:w-72 relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i class="fa-solid fa-search text-xs"></i></span>
+                <input type="text" id="searchInput" placeholder="搜尋工具名稱、ISO 範疇或關鍵字..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-emerald-800 text-white p-3.5 rounded-2xl shadow-sm text-center">
+                <div class="text-xs font-bold text-emerald-200">一、數據收集與辨識</div>
+                <div class="text-[11px] text-emerald-100/80 mt-0.5">自動化萃取憑證單據</div>
+            </div>
+            <div class="bg-teal-800 text-white p-3.5 rounded-2xl shadow-sm text-center">
+                <div class="text-xs font-bold text-teal-200">二、係數匹配與計算</div>
+                <div class="text-[11px] text-teal-100/80 mt-0.5">活動數據 × 排放係數</div>
+            </div>
+            <div class="bg-amber-800 text-white p-3.5 rounded-2xl shadow-sm text-center">
+                <div class="text-xs font-bold text-amber-200">三、範疇三與供應鏈</div>
+                <div class="text-[11px] text-amber-100/80 mt-0.5">價值鏈上下游評估</div>
+            </div>
+            <div class="bg-slate-800 text-white p-3.5 rounded-2xl shadow-sm text-center">
+                <div class="text-xs font-bold text-slate-200">四、品質稽核與視覺化</div>
+                <div class="text-[11px] text-slate-300 mt-0.5">稽核查詢與視覺呈現</div>
+            </div>
+        </div>
+
+        <!-- 4 大工作流垂直對應欄位容器 -->
+        <div id="kanbanContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start">
+            <!-- 欄位一 -->
+            <div id="col_w1" class="workflow-column bg-slate-50/80 border border-slate-200 rounded-2xl p-4 space-y-4 shadow-xs">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                    <span class="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+                        <i class="fa-solid fa-cloud-arrow-down"></i> 一、數據收集與辨識
+                    </span>
+                    <span id="badge_w1" class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                </div>
+                <div id="list_w1" class="space-y-3 min-h-[120px]"></div>
+            </div>
+
+            <!-- 欄位二 -->
+            <div id="col_w2" class="workflow-column bg-slate-50/80 border border-slate-200 rounded-2xl p-4 space-y-4 shadow-xs">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                    <span class="text-xs font-bold text-teal-800 flex items-center gap-1.5">
+                        <i class="fa-solid fa-calculator"></i> 二、係數匹配與計算
+                    </span>
+                    <span id="badge_w2" class="bg-teal-100 text-teal-800 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                </div>
+                <div id="list_w2" class="space-y-3 min-h-[120px]"></div>
+            </div>
+
+            <!-- 欄位三 -->
+            <div id="col_w3" class="workflow-column bg-slate-50/80 border border-slate-200 rounded-2xl p-4 space-y-4 shadow-xs">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                    <span class="text-xs font-bold text-amber-800 flex items-center gap-1.5">
+                        <i class="fa-solid fa-link"></i> 三、範疇三與供應鏈
+                    </span>
+                    <span id="badge_w3" class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                </div>
+                <div id="list_w3" class="space-y-3 min-h-[120px]"></div>
+            </div>
+
+            <!-- 欄位四 -->
+            <div id="col_w4" class="workflow-column bg-slate-50/80 border border-slate-200 rounded-2xl p-4 space-y-4 shadow-xs">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                    <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <i class="fa-solid fa-chart-pie"></i> 四、品質稽核與視覺化
+                    </span>
+                    <span id="badge_w4" class="bg-slate-200 text-slate-800 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                </div>
+                <div id="list_w4" class="space-y-3 min-h-[120px]"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 工具執行 Modal (彈跳視窗，支援回到上一頁) -->
+    <div id="toolModal" class="hidden fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex flex-col">
+        <div class="bg-slate-900 border-b border-slate-800 px-6 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button onclick="closeToolModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-2 rounded-xl transition flex items-center gap-1.5 border border-slate-700" title="回到主頁">
+                    <i class="fa-solid fa-arrow-left"></i> 回上一頁
+                </button>
+                <div id="modalToolIcon" class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center"></div>
+                <div>
+                    <h3 id="modalToolTitle" class="text-sm font-bold text-white">工具標題</h3>
+                    <p id="modalToolSub" class="text-xs text-slate-400">ESG AI 工作組技能模組</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="openNewTabBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 border border-slate-700">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> 另開視窗執行
+                </button>
+                <button onclick="closeToolModal()" class="bg-slate-800 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 border border-slate-700">
+                    <i class="fa-solid fa-xmark"></i> 關閉模組
+                </button>
+            </div>
+        </div>
+        <div class="flex-1 bg-slate-950 relative">
+            <iframe id="toolIframe" class="w-full h-full border-0"></iframe>
+        </div>
+    </div>
+
+    <!-- 影片預覽 Modal (彈跳視窗，支援回到上一頁) -->
+    <div id="videoModal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-4 space-y-3 shadow-2xl">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                <div class="flex items-center gap-2">
+                    <button onclick="closeVideoModal()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs px-3 py-1.5 rounded-lg transition flex items-center gap-1">
+                        <i class="fa-solid fa-arrow-left"></i> 回上一頁
+                    </button>
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-video text-emerald-400"></i> 教學影片彈跳預覽</h3>
+                </div>
+                <button onclick="closeVideoModal()" class="text-slate-400 hover:text-white p-1 rounded-lg"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="w-full aspect-video bg-slate-950 rounded-xl overflow-hidden relative flex items-center justify-center">
+                <iframe id="videoIframe" class="w-full h-full border-0" allowfullscreen></iframe>
+            </div>
+            <div class="flex justify-end pt-1">
+                <button onclick="closeVideoModal()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-4 py-2 rounded-xl transition">回到上一頁</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 管理員登入 Modal -->
+    <div id="adminLoginModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white border border-slate-200 rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-shield-halved text-amber-600"></i> 管理員身份驗證
+                </h3>
+                <button onclick="closeAdminLoginModal()" class="text-slate-400 hover:text-slate-700 p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-500">請輸入管理員密碼以啟用載入 HTML、刪除工具與修改文字權限。</p>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">管理員密碼</label>
+                    <input type="password" id="adminPasswordInput" placeholder="請輸入密碼..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div class="pt-2 flex items-center justify-end gap-2.5">
+                    <button type="button" onclick="closeAdminLoginModal()" class="px-4 py-2 text-xs font-medium text-slate-500 hover:bg-slate-100 rounded-xl transition">取消</button>
+                    <button type="button" onclick="verifyAdminPassword()" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl shadow-md shadow-amber-600/20 transition">
+                        確認登入
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自訂工具命名與修改 Modal -->
+    <div id="metaModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 id="metaModalTitle" class="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-file-code text-emerald-600"></i> 設定載入的 HTML 工具資訊
+                </h3>
+                <button id="closeMetaBtn" class="text-slate-400 hover:text-slate-700 p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">工具編號與名稱 (Title) *</label>
+                    <input type="text" id="metaName" placeholder="例如：03. 碳足跡與範疇三盤查" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">工具簡介說明 *</label>
+                    <input type="text" id="metaDesc" placeholder="例如：自動上傳採購憑證與供應鏈碳排計算" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">所屬工作流階段 *</label>
+                    <select id="metaWorkflow" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="w1">一、數據收集與辨識</option>
+                        <option value="w2">二、係數匹配與計算</option>
+                        <option value="w3">三、範疇三與供應鏈</option>
+                        <option value="w4">四、品質稽核與視覺化</option>
+                    </select>
+                </div>
+                <div class="pt-2 flex items-center justify-end gap-2.5">
+                    <button type="button" id="cancelMetaBtn" class="px-4 py-2 text-xs font-medium text-slate-500 hover:bg-slate-100 rounded-xl transition">取消</button>
+                    <button type="button" id="saveMetaBtn" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-600/20 transition">
+                        確認儲存
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 20個完整工具陣列，並為 15~20 加上指定之 YouTube 影片連結
+        const defaultTools = [
+            { id: 'tool_01', name: '1. 電費單 OCR', desc: '台電電費通知單 / 繳費證明 AI 智慧辨識，自動擷取電號、月份、計費度數 (kWh)。', icon: 'fa-solid fa-bolt', workflow: 'w1', codeNo: '#01', videoUrl: '', html: '<div>電費單 OCR 模組</div>' },
+            { id: 'tool_02', name: '2. 油單萃取', desc: '中油 / 台塑發票批次截圖辨識，自動統計公升數、金額、多車牌油耗與碳排分攤。', icon: 'fa-solid fa-gas-pump', workflow: 'w1', codeNo: '#02', videoUrl: '', html: '<div>油單萃取模組</div>' },
+            { id: 'tool_03', name: '3. 差旅哩程計算', desc: '高鐵、台鐵、國內外航班票根或紀錄辨識，依乘車距離與運具自動對應範疇三商務旅行。', icon: 'fa-solid fa-plane-departure', workflow: 'w1', codeNo: '#03', videoUrl: '', html: '<div>差旅哩程計算模組</div>' },
+            { id: 'tool_04', name: '4. 水費單辨識', desc: '自來水費水號與用水量度數自動擷取，支援多據點多月份水資源消耗盤查。', icon: 'fa-solid fa-droplet', workflow: 'w1', codeNo: '#04', videoUrl: '', html: '<div>水費單辨識模組</div>' },
+            { id: 'tool_05', name: '5. 採購發票AI分類', desc: '辦公耗材、原物料、固定資產等採購發票自動解析與永續採購分類。', icon: 'fa-solid fa-receipt', workflow: 'w1', codeNo: '#05', videoUrl: '', html: '<div>採購發票分類模組</div>' },
+            { id: 'tool_06', name: '6. 蒸氣與燃料憑證', desc: '重油、天然氣、生質能及外購蒸氣憑證數據收集與熱值轉換。', icon: 'fa-solid fa-fire', workflow: 'w2', codeNo: '#06', videoUrl: '', html: '<div>蒸氣與燃料憑證模組</div>' },
+            { id: 'tool_07', name: '7. 碳排係數資料庫比對', desc: '一鍵聯接官方最新版溫室氣體排放係數對照表（能源局與環境部公告係數）。', icon: 'fa-solid fa-database', workflow: 'w2', codeNo: '#07', videoUrl: '', html: '<div>係數資料庫模組</div>' },
+            { id: 'tool_08', name: '8. 範疇一固定燃燒計算', desc: '鍋爐、發電機、燃燒設備之燃料消耗量與碳排計算引擎。', icon: 'fa-solid fa-industry', workflow: 'w2', codeNo: '#08', videoUrl: '', html: '<div>固定燃燒計算模組</div>' },
+            { id: 'tool_09', name: '9. 範疇二外購電力計算', desc: '基於所在地別（Location-based）與市場別（Market-based）之綠電與台電排碳計算。', icon: 'fa-solid fa-plug-circle-bolt', workflow: 'w2', codeNo: '#09', videoUrl: '', html: '<div>外購電力計算模組</div>' },
+            { id: 'tool_10', name: '10. 冷媒逸散與F-gas計算', desc: '空調冷媒、滅火器等氟氯碳化物設備充填量與逸散係數計算。', icon: 'fa-solid fa-snowflake', workflow: 'w2', codeNo: '#10', videoUrl: '', html: '<div>冷媒逸散計算模組</div>' },
+            { id: 'tool_11', name: '11. 供應商問卷自動化', desc: '範疇三供應鏈上游廠商碳數據搜集問卷、範本發放與回收追蹤。', icon: 'fa-solid fa-file-lines', workflow: 'w3', codeNo: '#11', videoUrl: '', html: '<div>供應商問卷模組</div>' },
+            { id: 'tool_12', name: '12. 運輸與物流碳足跡', desc: '貨運、海運、空運公噸公里（Tonne-km）運送碳排計算。', icon: 'fa-solid fa-truck-fast', workflow: 'w3', codeNo: '#12', videoUrl: '', html: '<div>物流碳足跡模組</div>' },
+            { id: 'tool_13', name: '13. 員工通勤與遠距碳排', desc: '員工上下班交通工具調查、遠距辦公能耗推估與問卷分析。', icon: 'fa-solid fa-users', workflow: 'w3', codeNo: '#13', videoUrl: '', html: '<div>員工通勤模組</div>' },
+            { id: 'tool_14', name: '14. 廢棄物處理碳盤查', desc: '一般事業廢棄物、有害事業廢棄物清運及焚化/掩埋碳排計算。', icon: 'fa-solid fa-trash-arrow-up', workflow: 'w3', codeNo: '#14', videoUrl: '', html: '<div>廢棄物處理模組</div>' },
+            
+            // 影片連結工具 15~20
+            { id: 'tool_15', name: '15. 產品生命週期評估 (LCA)', desc: '搖籃到大門之原物料與製程碳足跡分析，符合 ISO 14040/44 標準。', icon: 'fa-solid fa-recycle', workflow: 'w3', codeNo: '#15', videoUrl: 'https://www.youtube.com/shorts/rwqMvq3YneQ', html: '<div>產品生命週期評估模組</div>' },
+            { id: 'tool_16', name: '16. 碳盤查數據品質評定 (DQI)', desc: '評估活動數據與係數之完整性、可靠性與精確度評分系統。', icon: 'fa-solid fa-award', workflow: 'w4', codeNo: '#16', videoUrl: 'https://youtube.com/shorts/rwqMvq3YneQ?feature=share', html: '<div>碳盤查數據品質評定模組</div>' },
+            { id: 'tool_17', name: '17. 內部稽核與不符合事項追蹤', desc: 'ISO 14064-1 內部查證缺失紀錄、改善對策指派與查證閉環管理。', icon: 'fa-solid fa-clipboard-check', workflow: 'w4', codeNo: '#17', videoUrl: 'https://youtube.com/shorts/Wmp2-Bbnogs', html: '<div>內部稽核追蹤模組</div>' },
+            { id: 'tool_18', name: '18. 永續報告書自動排版與圖表', desc: 'ESG 關鍵績效指標（KPI）視覺化圖表產出與 GRI 框架對照。', icon: 'fa-solid fa-chart-column', workflow: 'w4', codeNo: '#18', videoUrl: 'https://youtube.com/shorts/il0O5BGbq2g', html: '<div>永續報告書排版模組</div>' },
+            { id: 'tool_19', name: '19. 第三方查證意見書對照', desc: '查證機構（BSI、SGS等）意見回覆、盤查清册核對與決行管理。', icon: 'fa-solid fa-stamp', workflow: 'w4', codeNo: '#19', videoUrl: 'https://youtube.com/shorts/8DPQKmM17k8', html: '<div>第三方查證對照模組</div>' },
+            { id: 'tool_20', name: '20. 減碳路徑與 Net-Zero 模擬', desc: '科學基礎減碳目標（SBTi）模擬、減量情境規劃與淨零進度追蹤。', icon: 'fa-solid fa-chart-line', workflow: 'w4', codeNo: '#20', videoUrl: 'https://youtube.com/shorts/nUd33UdLnCE', html: '<div>減碳路徑模擬模組</div>' }
+        ];
+
+        let tools = JSON.parse(localStorage.getItem('esg_dashboard_tools_v4')) || defaultTools;
+        let currentFilter = 'all';
+        let pendingHtmlContent = '';
+        let isAdminLoggedIn = localStorage.getItem('esg_admin_logged_in') === 'true';
+        let editingToolId = null;
+
+        const statToolCount = document.getElementById('statToolCount');
+        const countAll = document.getElementById('countAll');
+        const searchInput = document.getElementById('searchInput');
+        const addHtmlFileBtn = document.getElementById('addHtmlFileBtn');
+        const htmlFileInput = document.getElementById('htmlFileInput');
+
+        const adminLoginModal = document.getElementById('adminLoginModal');
+        const adminPasswordInput = document.getElementById('adminPasswordInput');
+        const adminStatusIcon = document.getElementById('adminStatusIcon');
+        const adminBtnText = document.getElementById('adminBtnText');
+        const adminBadgeText = document.getElementById('adminBadgeText');
+
+        const metaModal = document.getElementById('metaModal');
+        const metaModalTitle = document.getElementById('metaModalTitle');
+        const closeMetaBtn = document.getElementById('closeMetaBtn');
+        const cancelMetaBtn = document.getElementById('cancelMetaBtn');
+        const saveMetaBtn = document.getElementById('saveMetaBtn');
+        const metaName = document.getElementById('metaName');
+        const metaDesc = document.getElementById('metaDesc');
+        const metaWorkflow = document.getElementById('metaWorkflow');
+
+        const toolModal = document.getElementById('toolModal');
+        const modalToolTitle = document.getElementById('modalToolTitle');
+        const modalToolSub = document.getElementById('modalToolSub');
+        const modalToolIcon = document.getElementById('modalToolIcon');
+        const toolIframe = document.getElementById('toolIframe');
+        const openNewTabBtn = document.getElementById('openNewTabBtn');
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toastMsg');
+
+        const videoModal = document.getElementById('videoModal');
+        const videoIframe = document.getElementById('videoIframe');
+
+        let currentActiveHtml = '';
+
+        function showToast(message) {
+            toastMsg.textContent = message;
+            toast.classList.remove('hidden', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.classList.add('hidden'), 300);
+            }, 2500);
+        }
+
+        // 更新管理員UI顯示
+        function updateAdminUI() {
+            if (isAdminLoggedIn) {
+                adminStatusIcon.className = "fa-solid fa-shield-halved text-xs text-emerald-600";
+                adminBtnText.textContent = "管理員已登入";
+                adminBadgeText.textContent = "已獲得管理權限";
+                adminBadgeText.className = "text-sm font-bold text-emerald-600 mt-0.5";
+            } else {
+                adminStatusIcon.className = "fa-solid fa-lock text-xs text-amber-500";
+                adminBtnText.textContent = "管理員登入";
+                adminBadgeText.textContent = "未登入 (唯讀模式)";
+                adminBadgeText.className = "text-sm font-bold text-rose-600 mt-0.5";
+            }
+            renderDashboard();
+        }
+
+        window.toggleAdminLogin = function() {
+            if (isAdminLoggedIn) {
+                if (confirm('確定要登出管理員權限嗎？')) {
+                    isAdminLoggedIn = false;
+                    localStorage.setItem('esg_admin_logged_in', 'false');
+                    updateAdminUI();
+                    showToast('已成功登出管理員');
+                }
+            } else {
+                adminPasswordInput.value = '';
+                adminLoginModal.classList.remove('hidden');
+                adminPasswordInput.focus();
+            }
+        };
+
+        window.closeAdminLoginModal = function() {
+            adminLoginModal.classList.add('hidden');
+        };
+
+        window.verifyAdminPassword = function() {
+            const pwd = adminPasswordInput.value.trim();
+            if (pwd === 'MIC2026') {
+                isAdminLoggedIn = true;
+                localStorage.setItem('esg_admin_logged_in', 'true');
+                closeAdminLoginModal();
+                updateAdminUI();
+                showToast('管理員驗證成功！現已解鎖載入、刪除與修改權限');
+            } else {
+                showToast('密碼錯誤，請重新輸入（預設密碼：MIC2026）');
+                adminPasswordInput.value = '';
+            }
+        };
+
+        // 轉換 YouTube 網址為嵌入格式 (支援 Shorts)
+        function convertToEmbedUrl(url) {
+            if (!url) return '';
+            let videoId = '';
+            if (url.includes('shorts/')) {
+                videoId = url.split('shorts/')[1].split('?')[0];
+            } else if (url.includes('watch?v=')) {
+                videoId = url.split('watch?v=')[1].split('&')[0];
+            } else if (url.includes('youtu.be/')) {
+                videoId = url.split('youtu.be/')[1].split('?')[0];
+            }
+            if (videoId) {
+                return `https://www.youtube.com/embed/${videoId}`;
+            }
+            return url;
+        }
+
+        // 渲染儀表板
+        function renderDashboard() {
+            const query = searchInput.value.toLowerCase();
+            let filtered = tools.filter(t => {
+                return t.name.toLowerCase().includes(query) || t.desc.toLowerCase().includes(query);
+            });
+
+            statToolCount.textContent = tools.length;
+            countAll.textContent = tools.length;
+
+            const workflows = ['w1', 'w2', 'w3', 'w4'];
+            let counts = { w1: 0, w2: 0, w3: 0, w4: 0 };
+
+            workflows.forEach(wf => {
+                const listEl = document.getElementById('list_' + wf);
+                const colEl = document.getElementById('col_' + wf);
+                const badgeEl = document.getElementById('badge_' + wf);
+
+                if (currentFilter !== 'all' && currentFilter !== wf) {
+                    colEl.classList.add('hidden');
+                    return;
+                } else {
+                    colEl.classList.remove('hidden');
+                }
+
+                const wfTools = filtered.filter(t => t.workflow === wf);
+                counts[wf] = wfTools.length;
+                badgeEl.textContent = wfTools.length;
+
+                let html = '';
+                wfTools.forEach((tool) => {
+                    // 影片按鈕與刪除連結按鈕
+                    let videoBtnHtml = '';
+                    if (tool.videoUrl) {
+                        videoBtnHtml = `
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <button onclick="openVideo('${tool.videoUrl}')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-[10px] font-semibold px-2 py-1 rounded-lg transition flex items-center gap-1" title="彈跳載入影片">
+                                    <i class="fa-solid fa-play text-[9px]"></i> 播放教學影片
+                                </button>
+                                ${isAdminLoggedIn ? `<button onclick="deleteVideoUrl('${tool.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-[10px] font-semibold px-2 py-1 rounded-lg transition" title="刪除影片連結"><i class="fa-solid fa-xmark text-[9px]"></i> 刪除影片</button>` : ''}
+                            </div>
+                        `;
+                    } else {
+                        if (isAdminLoggedIn) {
+                            videoBtnHtml = `
+                                <button onclick="addVideoUrlPrompt('${tool.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-semibold px-2.5 py-1 rounded-lg transition flex items-center gap-1">
+                                    <i class="fa-solid fa-plus text-[9px]"></i> 新增影片連結
+                                </button>
+                            `;
+                        }
+                    }
+
+                    // 管理員可見的刪除與編輯文字按鈕
+                    let adminActionBtns = '';
+                    if (isAdminLoggedIn) {
+                        adminActionBtns = `
+                            <div class="flex items-center gap-1.5">
+                                <button onclick="openEditModal('${tool.id}')" class="text-slate-400 hover:text-emerald-600 p-1 rounded transition" title="修改文字與說明"><i class="fa-solid fa-pen-to-square text-xs"></i></button>
+                                <button onclick="deleteTool('${tool.id}')" class="text-slate-400 hover:text-rose-500 p-1 rounded transition" title="刪除此工具"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                            </div>
+                        `;
+                    }
+
+                    html += `
+                        <div class="bg-white border border-slate-200/90 hover:border-emerald-500/60 rounded-xl p-4 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between group relative">
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="bg-emerald-50 text-emerald-700 text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                        <i class="fa-solid fa-check text-[8px]"></i> 附檔集成
+                                    </span>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[11px] font-mono font-bold text-slate-400">${tool.codeNo || '#00'}</span>
+                                        ${adminActionBtns}
+                                    </div>
+                                </div>
+                                <h3 class="text-xs font-bold text-slate-900 group-hover:text-emerald-600 transition mb-1 flex items-center gap-1.5">
+                                    <i class="${tool.icon || 'fa-solid fa-cubes'} text-emerald-600"></i> ${escapeHtml(tool.name)}
+                                </h3>
+                                <p class="text-[11px] text-slate-500 line-clamp-3 leading-relaxed mb-3">${escapeHtml(tool.desc)}</p>
+                                <div class="mb-3">
+                                    ${videoBtnHtml}
+                                </div>
+                            </div>
+                            <div class="pt-3 border-t border-slate-100 mt-1 flex items-center justify-between">
+                                <span class="text-[10px] text-slate-400 font-medium">模組工具</span>
+                                <button onclick="openTool('${tool.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold px-2.5 py-1.5 rounded-lg transition shadow-xs flex items-center gap-1 active:scale-95">
+                                    <i class="fa-solid fa-play text-[8px]"></i> 啟動工具
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                if (wfTools.length === 0) {
+                    html = `<div class="py-8 text-center text-slate-400 text-xs bg-white/50 border border-dashed border-slate-200 rounded-xl">此分類尚無工具模組</div>`;
+                }
+                listEl.innerHTML = html;
+            });
+            localStorage.setItem('esg_dashboard_tools_v4', JSON.stringify(tools));
+        }
+
+        window.filterTools = function(wf) {
+            currentFilter = wf;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.className = "filter-btn bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium px-3 py-1.5 rounded-xl transition";
+            });
+            document.getElementById('filter_' + wf).className = "filter-btn bg-slate-900 text-white text-xs font-semibold px-3 py-1.5 rounded-xl transition";
+            renderDashboard();
+        };
+
+        searchInput.addEventListener('input', renderDashboard);
+
+        // 開啟影片 Modal
+        window.openVideo = function(url) {
+            const embedUrl = convertToEmbedUrl(url);
+            videoIframe.src = embedUrl;
+            videoModal.classList.remove('hidden');
+        };
+
+        window.closeVideoModal = function() {
+            videoModal.classList.add('hidden');
+            videoIframe.src = '';
+        };
+
+        // 新增或更新影片連結
+        window.addVideoUrlPrompt = function(id) {
+            if (!isAdminLoggedIn) {
+                showToast('需要管理員權限 (請點選右上角登入)');
+                return;
+            }
+            const urlInput = prompt('請輸入 YouTube 影片網址 (例如 https://www.youtube.com/shorts/...):');
+            if (urlInput !== null) {
+                const tool = tools.find(t => t.id === id);
+                if (tool) {
+                    tool.videoUrl = urlInput.trim();
+                    renderDashboard();
+                    showToast('成功新增對應影片連結！');
+                }
+            }
+        };
+
+        // 刪除影片連結功能
+        window.deleteVideoUrl = function(id) {
+            if (!isAdminLoggedIn) {
+                showToast('需要管理員權限');
+                return;
+            }
+            const tool = tools.find(t => t.id === id);
+            if (tool) {
+                tool.videoUrl = '';
+                renderDashboard();
+                showToast('已成功刪除該工具的影片連結');
+            }
+        };
+
+        // 啟動工具 Modal (直接以彈跳視窗呈現)
+        window.openTool = function(id) {
+            const tool = tools.find(t => t.id === id);
+            if (!tool) return;
+
+            modalToolTitle.textContent = tool.name;
+            modalToolSub.textContent = tool.desc;
+            modalToolIcon.innerHTML = `<i class="${tool.icon || 'fa-solid fa-cubes'}"></i>`;
+            currentActiveHtml = tool.html;
+
+            toolIframe.srcdoc = tool.html;
+            toolModal.classList.remove('hidden');
+        };
+
+        window.closeToolModal = function() {
+            toolModal.classList.add('hidden');
+            toolIframe.srcdoc = '';
+        };
+
+        openNewTabBtn.addEventListener('click', () => {
+            const blob = new Blob([currentActiveHtml], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+        });
+
+        // 載入 HTML 檔案按鈕
+        addHtmlFileBtn.addEventListener('click', () => {
+            if (!isAdminLoggedIn) {
+                showToast('【權限受限】請先點擊右上角「管理員登入」(密碼 MIC2026) 才能載入新工具');
+                return;
+            }
+            htmlFileInput.click();
+        });
+
+        htmlFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                pendingHtmlContent = evt.target.result;
+                editingToolId = null;
+                metaModalTitle.innerHTML = `<i class="fa-solid fa-file-code text-emerald-600"></i> 設定載入的 HTML 工具資訊`;
+                metaName.value = file.name.replace(/\.[^/.]+$/, "");
+                metaDesc.value = "由上傳的 HTML 檔案自動載入的永續與碳排管理模組。";
+                metaWorkflow.value = "w1";
+                metaModal.classList.remove('hidden');
+            };
+            reader.readAsText(file);
+            htmlFileInput.value = '';
+        });
+
+        // 編輯文字與說明功能
+        window.openEditModal = function(id) {
+            if (!isAdminLoggedIn) {
+                showToast('需要管理員權限');
+                return;
+            }
+            const tool = tools.find(t => t.id === id);
+            if (!tool) return;
+
+            editingToolId = tool.id;
+            metaModalTitle.innerHTML = `<i class="fa-solid fa-pen-to-square text-emerald-600"></i> 修改工具文字與說明`;
+            metaName.value = tool.name;
+            metaDesc.value = tool.desc;
+            metaWorkflow.value = tool.workflow;
+            pendingHtmlContent = tool.html;
+            metaModal.classList.remove('hidden');
+        };
+
+        const closeMetaModal = () => {
+            metaModal.classList.add('hidden');
+            pendingHtmlContent = '';
+            editingToolId = null;
+        };
+
+        closeMetaBtn.addEventListener('click', closeMetaModal);
+        cancelMetaBtn.addEventListener('click', closeMetaModal);
+
+        saveMetaBtn.addEventListener('click', () => {
+            const name = metaName.value.trim();
+            const desc = metaDesc.value.trim();
+            const workflow = metaWorkflow.value;
+
+            if (!name || !desc) {
+                showToast('請完整填寫工具名稱與簡介');
+                return;
+            }
+
+            if (editingToolId) {
+                // 編輯現有工具
+                const tool = tools.find(t => t.id === editingToolId);
+                if (tool) {
+                    tool.name = name;
+                    tool.desc = desc;
+                    tool.workflow = workflow;
+                    if (pendingHtmlContent) {
+                        tool.html = pendingHtmlContent;
+                    }
+                }
+                showToast('已成功更新工具文字與內容！');
+            } else {
+                // 新增工具
+                if (!pendingHtmlContent) {
+                    pendingHtmlContent = '<div>自訂載入工具</div>';
+                }
+                const newTool = {
+                    id: 'custom_' + Date.now(),
+                    name,
+                    desc,
+                    icon: 'fa-solid fa-file-code',
+                    workflow,
+                    codeNo: '#' + (tools.length + 1 < 10 ? '0' + (tools.length + 1) : tools.length + 1),
+                    videoUrl: '',
+                    html: pendingHtmlContent
+                };
+                tools.push(newTool);
+                showToast('已成功載入 HTML 檔案並加入對應工作流欄位！');
+            }
+
+            renderDashboard();
+            closeMetaModal();
+        });
+
+        // 刪除工具功能
+        window.deleteTool = function(id) {
+            if (!isAdminLoggedIn) {
+                showToast('【權限受限】請先登入管理員才能刪除工具');
+                return;
+            }
+            if (confirm('確定要刪除這個 HTML 工具模組嗎？')) {
+                tools = tools.filter(t => t.id !== id);
+                renderDashboard();
+                showToast('已成功刪除該工具模組');
+            }
+        };
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        updateAdminUI();
+    </script>
+</body>
+</html>
